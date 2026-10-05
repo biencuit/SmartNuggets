@@ -1,10 +1,10 @@
-# SmartnNuggets
+# SmartNuggets
 
 Projet d'intégration - EPHEC, Bac 3.
 
 ## Le projet
 
-SmartnNuggets est une porte de poulailler intelligente. L'idée est simple : la porte s'ouvre toute seule quand une poule veut entrer ou sortir, et reste fermée quand un prédateur traîne autour.
+SmartNuggets est une porte de poulailler intelligente. L'idée est simple : la porte s'ouvre toute seule quand une poule veut entrer ou sortir, et reste fermée quand un prédateur traîne autour.
 
 Concrètement :
 
