@@ -161,6 +161,9 @@ export const api = {
     apiFetch<User>("/auth/register", { method: "POST", json: { email, password } }),
   me: (token: string) => apiFetch<User>("/auth/me", { token }),
   listCoops: (token: string) => apiFetch<Coop[]>("/coops", { token }),
+  /** L'identifiant est celui du compte MQTT du Raspberry Pi (409 s'il est déjà pris). */
+  createCoop: (token: string, coop: Coop) =>
+    apiFetch<Coop>("/coops", { method: "POST", token, json: coop }),
   getStatus: (token: string, coopId: string) =>
     apiFetch<CoopStatus>(`/coops/${encodeURIComponent(coopId)}/status`, { token }),
   /** Historique, du plus récent au plus ancien (200 éléments au maximum par appel). */
