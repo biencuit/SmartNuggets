@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { api, ApiError, type Coop } from "../api/client";
 import { useAuth } from "../auth/useAuth";
+import { CoopStatusPanel } from "../components/CoopStatusPanel";
 
 /** Page d'accueil après connexion : la liste des poulaillers de l'éleveur. */
 export function HomePage() {
@@ -66,6 +67,7 @@ export function HomePage() {
               <p className="text-sm text-stone-500">
                 {coop.total_hens} poules · identifiant {coop.id}
               </p>
+              <CoopStatusPanel coopId={coop.id} />
               {/* Le tableau de bord du poulailler (issue #26) vient se brancher ici. */}
             </li>
           ))}

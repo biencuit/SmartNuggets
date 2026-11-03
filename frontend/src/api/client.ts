@@ -29,6 +29,24 @@ export interface Coop {
   total_hens: number;
 }
 
+export type DoorState = "OPEN" | "CLOSED" | "OPENING" | "CLOSING" | "ERROR";
+
+export interface CoopStatus {
+  coop_id: string;
+  name: string;
+  door_state: DoorState;
+  inside_count: number;
+  total_hens: number;
+  outside_count: number;
+  /** Niveau de batterie en %, null si inconnu. */
+  battery: number | null;
+  auto_close_time: string | null;
+  /** Dernier message reçu du Raspberry Pi (ISO 8601, UTC). */
+  last_seen_at: string | null;
+  online: boolean;
+  camera_ok: boolean | null;
+}
+
 interface RequestOptions {
   method?: string;
   token?: string | null;
@@ -101,4 +119,9 @@ export const api = {
     apiFetch<User>("/auth/register", { method: "POST", json: { email, password } }),
   me: (token: string) => apiFetch<User>("/auth/me", { token }),
   listCoops: (token: string) => apiFetch<Coop[]>("/coops", { token }),
+  getStatus: (token: string, coopId: string) =>
+    apiFetch<CoopStatus>(`/coops/${encodeURIComponent(coopId)}/status`, { token }),
+  /** EventSource ne peut pas envoyer d'en-tête : le jeton passe en paramètre. */
+  streamUrl: (token: string, coopId: string) =>
+    `${API_BASE}/coops/${encodeURIComponent(coopId)}/stream?token=${encodeURIComponent(token)}`,
 };
