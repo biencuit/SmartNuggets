@@ -1,0 +1,11 @@
+# Contexte de l'image nginx (racine du dépôt) : seuls frontend/ et nginx/ sont utiles.
+**/.git
+**/node_modules
+**/dist
+**/.env
+backend/
+edge-coop/
+mosquitto/
+Python-RP5/
+scripts/
+.dev/
