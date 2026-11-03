@@ -8,8 +8,8 @@ from app.models import Alert, AlertType, Coop, Event, EventType, Severity
 from app.timeutils import utcnow
 
 
-async def test_health(client: AsyncClient) -> None:
-    response = await client.get("/api/v1/health")
+async def test_health(anon_client: AsyncClient) -> None:
+    response = await anon_client.get("/api/v1/health")
     assert response.json() == {"status": "ok"}
 
 

@@ -17,12 +17,16 @@ from app.config import Settings
 from app.db import Base
 from app.main import create_app
 from app.models import Coop, DoorState, User
+from app.security import create_access_token, hash_password
+
+TEST_SECRET = "test-secret-" + "x" * 52
+OWNER_PASSWORD = "mot-de-passe-de-marc"
 
 
 @pytest.fixture
 def settings(tmp_path) -> Settings:
     url = os.environ.get("TEST_DATABASE_URL", f"sqlite+aiosqlite:///{tmp_path / 'test.db'}")
-    return Settings(database_url=url, media_dir=str(tmp_path / "media"))
+    return Settings(database_url=url, media_dir=str(tmp_path / "media"), jwt_secret_key=TEST_SECRET)
 
 
 @pytest.fixture
@@ -41,15 +45,31 @@ async def session(app: FastAPI) -> AsyncIterator[AsyncSession]:
         yield db_session
 
 
+def token_for(user: User) -> str:
+    return create_access_token(user.id, TEST_SECRET, "HS256", 60)
+
+
 @pytest.fixture
-async def client(app: FastAPI) -> AsyncIterator[AsyncClient]:
+async def anon_client(app: FastAPI) -> AsyncIterator[AsyncClient]:
+    """Client HTTP sans authentification."""
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as http:
         yield http
 
 
 @pytest.fixture
+async def client(app: FastAPI, owner: User) -> AsyncIterator[AsyncClient]:
+    """Client HTTP connecté en tant que `owner`."""
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"Authorization": f"Bearer {token_for(owner)}"},
+    ) as http:
+        yield http
+
+
+@pytest.fixture
 async def owner(session: AsyncSession) -> User:
-    user = User(email="marc@example.com", password_hash="!")
+    user = User(email="marc@example.com", password_hash=hash_password(OWNER_PASSWORD))
     session.add(user)
     await session.commit()
     return user
