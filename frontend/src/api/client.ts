@@ -47,6 +47,48 @@ export interface CoopStatus {
   camera_ok: boolean | null;
 }
 
+export type EventType = "HEN_ENTRY" | "HEN_EXIT" | "DOOR_OPEN" | "DOOR_CLOSE" | "OBSTACLE";
+
+export type TriggerSource = "AI_AUTO" | "MANUAL_APP" | "SCHEDULE" | "FAILSAFE";
+
+/** Passage d'une poule ou mouvement de la porte (`GET /events`, flux `event`). */
+export interface CoopEvent {
+  id: number;
+  event_type: EventType;
+  trigger_source: TriggerSource | null;
+  inside_count_after: number | null;
+  ai_confidence: number | null;
+  /** ISO 8601, UTC. */
+  occurred_at: string;
+}
+
+export type AlertType =
+  "PREDATOR_DETECTED" | "MISSING_HEN" | "DOOR_BLOCKED" | "LOW_BATTERY" | "DEVICE_OFFLINE";
+
+export type Severity = "WARNING" | "CRITICAL";
+
+/** Alerte du poulailler (`GET /alerts`, flux `alert`). */
+export interface CoopAlert {
+  id: number;
+  alert_type: AlertType;
+  severity: Severity;
+  ai_confidence: number | null;
+  image_url: string | null;
+  acknowledged: boolean;
+  /** ISO 8601, UTC. */
+  created_at: string;
+}
+
+export type CommandAction = "OPEN" | "CLOSE" | "CALIBRATE";
+
+export interface CommandAccepted {
+  command_id: string;
+  coop_id: string;
+  action: CommandAction;
+  inside_count: number | null;
+  issued_at: string;
+}
+
 interface RequestOptions {
   method?: string;
   token?: string | null;
@@ -121,6 +163,29 @@ export const api = {
   listCoops: (token: string) => apiFetch<Coop[]>("/coops", { token }),
   getStatus: (token: string, coopId: string) =>
     apiFetch<CoopStatus>(`/coops/${encodeURIComponent(coopId)}/status`, { token }),
+  /** Historique, du plus récent au plus ancien (200 éléments au maximum par appel). */
+  listEvents: (token: string, coopId: string, limit = 200) =>
+    apiFetch<CoopEvent[]>(`/coops/${encodeURIComponent(coopId)}/events?limit=${String(limit)}`, {
+      token,
+    }),
+  listAlerts: (token: string, coopId: string, limit = 50) =>
+    apiFetch<CoopAlert[]>(`/coops/${encodeURIComponent(coopId)}/alerts?limit=${String(limit)}`, {
+      token,
+    }),
+  acknowledgeAlert: (token: string, coopId: string, alertId: number) =>
+    apiFetch<CoopAlert>(`/coops/${encodeURIComponent(coopId)}/alerts/${String(alertId)}/ack`, {
+      method: "POST",
+      token,
+    }),
+  sendCommand: (token: string, coopId: string, action: CommandAction, insideCount?: number) =>
+    apiFetch<CommandAccepted>(`/coops/${encodeURIComponent(coopId)}/command`, {
+      method: "POST",
+      token,
+      json: insideCount === undefined ? { action } : { action, inside_count: insideCount },
+    }),
+  /** `<img>` ne peut pas envoyer d'en-tête : le jeton passe en paramètre. */
+  alertImageUrl: (token: string, coopId: string, alertId: number) =>
+    `${API_BASE}/coops/${encodeURIComponent(coopId)}/alerts/${String(alertId)}/image?token=${encodeURIComponent(token)}`,
   /** EventSource ne peut pas envoyer d'en-tête : le jeton passe en paramètre. */
   streamUrl: (token: string, coopId: string) =>
     `${API_BASE}/coops/${encodeURIComponent(coopId)}/stream?token=${encodeURIComponent(token)}`,
