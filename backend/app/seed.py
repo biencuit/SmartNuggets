@@ -21,9 +21,12 @@ from app.models import (
     User,
 )
 from app.repositories import CoopRepository, UserRepository
+from app.security import hash_password
 from app.timeutils import utcnow
 
 DEMO_EMAIL = "demo@smartnuggets.be"
+# Compte de démonstration pour le développement local uniquement (jamais en production).
+DEMO_PASSWORD = "poulailler"  # nosec B105
 DEMO_COOP_ID = "coop_01"
 
 
@@ -32,13 +35,15 @@ async def seed() -> None:
     sessionmaker = create_sessionmaker(engine)
     async with sessionmaker() as session:
         users = UserRepository(session)
-        if await users.get_by_email(DEMO_EMAIL) is not None:
-            print("Données de démo déjà présentes.")
+        existing = await users.get_by_email(DEMO_EMAIL)
+        if existing is not None:
+            existing.password_hash = hash_password(DEMO_PASSWORD)
+            await session.commit()
             await engine.dispose()
+            print(f"Données de démo déjà présentes ({DEMO_EMAIL} / {DEMO_PASSWORD}).")
             return
 
-        # "!" = aucun mot de passe valide (la connexion arrive avec l'issue #25).
-        user = await users.add(User(email=DEMO_EMAIL, password_hash="!"))  # nosec B106
+        user = await users.add(User(email=DEMO_EMAIL, password_hash=hash_password(DEMO_PASSWORD)))
         await CoopRepository(session).add(
             Coop(
                 id=DEMO_COOP_ID,
@@ -90,7 +95,9 @@ async def seed() -> None:
         )
         await session.commit()
     await engine.dispose()
-    print(f"Utilisateur {DEMO_EMAIL} et poulailler {DEMO_COOP_ID} créés.")
+    print(
+        f"Compte {DEMO_EMAIL} (mot de passe : {DEMO_PASSWORD}) et poulailler {DEMO_COOP_ID} créés."
+    )
 
 
 if __name__ == "__main__":
