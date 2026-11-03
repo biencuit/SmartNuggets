@@ -32,4 +32,6 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=4)"
 
 # Migrations puis API. Un seul worker : le flux temps réel (SSE) est diffusé en mémoire.
-CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:create_app --factory --host 0.0.0.0 --port 8000 --workers 1 --proxy-headers --forwarded-allow-ips='*'"]
+# Pas de journal d'accès Uvicorn (il contiendrait le ?token= des routes /stream et /image) :
+# nginx journalise les requêtes sans la query string.
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:create_app --factory --host 0.0.0.0 --port 8000 --workers 1 --proxy-headers --forwarded-allow-ips='*' --no-access-log"]
