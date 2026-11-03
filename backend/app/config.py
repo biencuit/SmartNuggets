@@ -26,6 +26,13 @@ class Settings(BaseSettings):
     media_dir: str = "media"
     max_image_bytes: int = 2_000_000
 
+    # Santé du dispositif : au-delà de ce délai sans nouvelles, le poulailler est "hors ligne"
+    # et une alerte DEVICE_OFFLINE est créée. Le Pi envoie une télémétrie au moins toutes
+    # les 5 minutes (battement de cœur).
+    device_offline_after_s: int = 900
+    health_check_interval_s: float = 60.0
+    low_battery_threshold: int = 20
+
     # Broker MQTT (Mosquitto). Désactivé par défaut : l'API tourne alors sans le poulailler.
     mqtt_enabled: bool = False
     mqtt_host: str = "localhost"

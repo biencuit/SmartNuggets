@@ -98,6 +98,8 @@ class MqttWorker:
                     self.broadcaster,
                     Path(self.settings.media_dir),
                     self.settings.max_image_bytes,
+                    self.settings.device_offline_after_s,
+                    self.settings.low_battery_threshold,
                 )
                 if channel is topics.Channel.TELEMETRY:
                     await service.handle_telemetry(

@@ -8,12 +8,12 @@ from pathlib import Path
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Alert, Coop, Event
+from app.models import Alert, AlertType, Coop, Event, Severity
 from app.mqtt.messages import AlertMessage, TelemetryMessage
 from app.repositories import AlertRepository, CoopRepository, EventRepository
 from app.schemas import AlertRead, EventRead
 from app.services.broadcaster import Broadcaster
-from app.services.coop_service import build_status
+from app.services.coop_service import DEFAULT_OFFLINE_AFTER_S, build_status
 from app.timeutils import utcnow
 
 logger = logging.getLogger(__name__)
@@ -28,11 +28,15 @@ class IngestionService:
         broadcaster: Broadcaster,
         media_dir: Path,
         max_image_bytes: int = 2_000_000,
+        offline_after_s: int = DEFAULT_OFFLINE_AFTER_S,
+        low_battery_threshold: int = 20,
     ) -> None:
         self.session = session
         self.broadcaster = broadcaster
         self.media_dir = media_dir
         self.max_image_bytes = max_image_bytes
+        self.offline_after_s = offline_after_s
+        self.low_battery_threshold = low_battery_threshold
         self.coops = CoopRepository(session)
         self.events = EventRepository(session)
         self.alerts = AlertRepository(session)
@@ -51,8 +55,20 @@ class IngestionService:
             coop.door_state = message.door_state
         if message.inside_count is not None:
             coop.inside_count = message.inside_count
+        low_battery_alert = None
         if message.battery_level is not None:
+            if self._crosses_low_battery(coop.battery_level, message.battery_level):
+                low_battery_alert = await self.alerts.add(
+                    Alert(
+                        coop_id=coop_id,
+                        alert_type=AlertType.LOW_BATTERY,
+                        severity=Severity.WARNING,
+                        created_at=utcnow(),
+                    )
+                )
             coop.battery_level = message.battery_level
+        if message.camera_ok is not None:
+            coop.camera_ok = message.camera_ok
         coop.last_seen_at = utcnow()
         coop.is_online = True
 
@@ -79,6 +95,8 @@ class IngestionService:
             self.broadcaster.publish(
                 coop_id, "event", EventRead.model_validate(event).model_dump(mode="json")
             )
+        if low_battery_alert is not None:
+            self._publish_alert(low_battery_alert)
 
     async def handle_alert(self, coop_id: str, message: AlertMessage) -> None:
         coop = await self._get_coop(coop_id)
@@ -102,10 +120,7 @@ class IngestionService:
                 await asyncio.to_thread(_write_file, path, image)
                 alert.image_url = f"/api/v1/coops/{coop_id}/alerts/{alert.id}/image"
         await self.session.commit()
-
-        self.broadcaster.publish(
-            coop_id, "alert", AlertRead.model_validate(alert).model_dump(mode="json")
-        )
+        self._publish_alert(alert)
 
     async def handle_status(self, coop_id: str, online: bool) -> None:
         coop = await self._get_coop(coop_id)
@@ -117,8 +132,19 @@ class IngestionService:
         await self.session.commit()
         self._publish_status(coop)
 
+    def _crosses_low_battery(self, previous: int | None, current: int) -> bool:
+        """Alerte une seule fois, au passage sous le seuil (pas à chaque télémétrie)."""
+        was_ok = previous is None or previous >= self.low_battery_threshold
+        return was_ok and current < self.low_battery_threshold
+
     def _publish_status(self, coop: Coop) -> None:
-        self.broadcaster.publish(coop.id, "status", build_status(coop).model_dump(mode="json"))
+        status = build_status(coop, self.offline_after_s)
+        self.broadcaster.publish(coop.id, "status", status.model_dump(mode="json"))
+
+    def _publish_alert(self, alert: Alert) -> None:
+        self.broadcaster.publish(
+            alert.coop_id, "alert", AlertRead.model_validate(alert).model_dump(mode="json")
+        )
 
     def _decode_image(self, data: str, image_format: str) -> bytes | None:
         try:

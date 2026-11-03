@@ -58,6 +58,7 @@ class AlertType(StrEnum):
     MISSING_HEN = "MISSING_HEN"
     DOOR_BLOCKED = "DOOR_BLOCKED"
     LOW_BATTERY = "LOW_BATTERY"
+    DEVICE_OFFLINE = "DEVICE_OFFLINE"
 
 
 class Severity(StrEnum):
@@ -96,6 +97,8 @@ class Coop(Base):
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # Connexion MQTT du Raspberry Pi (topic status, alimenté par le Last Will).
     is_online: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    # État de la caméra signalé par le Pi (None : jamais signalé).
+    camera_ok: Mapped[bool | None] = mapped_column(Boolean)
 
     owner: Mapped[User] = relationship(back_populates="coops")
 

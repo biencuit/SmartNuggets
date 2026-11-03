@@ -23,6 +23,7 @@ class TelemetryMessage(BaseModel):
     door_state: DoorState | None = None
     inside_count: int | None = Field(default=None, ge=0)
     battery_level: int | None = Field(default=None, ge=0, le=100)
+    camera_ok: bool | None = None
     event: EventPayload | None = None
 
 

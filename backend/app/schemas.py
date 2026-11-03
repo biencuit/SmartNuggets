@@ -62,6 +62,10 @@ class CoopStatus(BaseModel):
     battery: int | None = Field(description="Niveau de batterie en %")
     auto_close_time: time | None
     last_seen_at: UtcDatetime | None = Field(description="Dernier message reçu du Raspberry Pi")
+    online: bool = Field(
+        description="Raspberry Pi connecté au broker et ayant donné des nouvelles récemment"
+    )
+    camera_ok: bool | None = Field(description="État de la caméra (null : inconnu)")
 
 
 class EventRead(ORMModel):

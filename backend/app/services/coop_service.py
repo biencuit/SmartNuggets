@@ -2,6 +2,7 @@
 
 import uuid
 from collections.abc import Sequence
+from datetime import datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,17 +11,25 @@ from app.models import Alert, Coop, Event
 from app.repositories import AlertRepository, CoopRepository, EventRepository
 from app.schemas import CommandRequest, CoopCreate, CoopStatus
 from app.services.commands import CommandPublisher, DoorCommand
+from app.timeutils import ensure_utc, utcnow
+
+DEFAULT_OFFLINE_AFTER_S = 900
 
 
 class CoopService:
     """Toutes les opérations sont limitées aux poulaillers de l'utilisateur connecté."""
 
     def __init__(
-        self, session: AsyncSession, publisher: CommandPublisher, owner_id: uuid.UUID
+        self,
+        session: AsyncSession,
+        publisher: CommandPublisher,
+        owner_id: uuid.UUID,
+        offline_after_s: int = DEFAULT_OFFLINE_AFTER_S,
     ) -> None:
         self.session = session
         self.publisher = publisher
         self.owner_id = owner_id
+        self.offline_after_s = offline_after_s
         self.coops = CoopRepository(session)
         self.events = EventRepository(session)
         self.alerts = AlertRepository(session)
@@ -44,7 +53,7 @@ class CoopService:
 
     async def get_status(self, coop_id: str) -> CoopStatus:
         coop = await self.get_coop(coop_id)
-        return build_status(coop)
+        return build_status(coop, self.offline_after_s)
 
     async def list_events(
         self, coop_id: str, *, event_type: str | None, limit: int, offset: int
@@ -84,7 +93,20 @@ class CoopService:
         return command
 
 
-def build_status(coop: Coop) -> CoopStatus:
+def is_online(coop: Coop, offline_after_s: int, now: datetime | None = None) -> bool:
+    """Connecté au broker (Last Will) ET dernier message il y a moins de `offline_after_s`.
+
+    Le second critère couvre un Pi encore connecté mais bloqué (programme planté).
+    """
+    if not coop.is_online or coop.last_seen_at is None:
+        return False
+    now = now or utcnow()
+    return now - ensure_utc(coop.last_seen_at) < timedelta(seconds=offline_after_s)
+
+
+def build_status(
+    coop: Coop, offline_after_s: int = DEFAULT_OFFLINE_AFTER_S, now: datetime | None = None
+) -> CoopStatus:
     return CoopStatus(
         coop_id=coop.id,
         name=coop.name,
@@ -95,4 +117,6 @@ def build_status(coop: Coop) -> CoopStatus:
         battery=coop.battery_level,
         auto_close_time=coop.auto_close_time,
         last_seen_at=coop.last_seen_at,
+        online=is_online(coop, offline_after_s, now),
+        camera_ok=coop.camera_ok,
     )

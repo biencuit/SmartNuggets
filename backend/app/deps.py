@@ -87,15 +87,18 @@ def get_auth_service(session: SessionDep, settings: SettingsDep) -> AuthService:
 
 
 def get_coop_service(
-    session: SessionDep, publisher: PublisherDep, user: CurrentUser
+    session: SessionDep, publisher: PublisherDep, settings: SettingsDep, user: CurrentUser
 ) -> CoopService:
-    return CoopService(session, publisher, owner_id=user.id)
+    return CoopService(session, publisher, user.id, settings.device_offline_after_s)
 
 
 def get_coop_service_header_or_query(
-    session: SessionDep, publisher: PublisherDep, user: CurrentUserHeaderOrQuery
+    session: SessionDep,
+    publisher: PublisherDep,
+    settings: SettingsDep,
+    user: CurrentUserHeaderOrQuery,
 ) -> CoopService:
-    return CoopService(session, publisher, owner_id=user.id)
+    return CoopService(session, publisher, user.id, settings.device_offline_after_s)
 
 
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
