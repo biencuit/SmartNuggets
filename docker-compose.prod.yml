@@ -1,0 +1,81 @@
+# Production SmartNuggets sur le VPS : docker compose -f docker-compose.prod.yml up -d --build
+# (ou bash scripts/deploy.sh). Configuration : backend/.env, mosquitto/config/passwd et
+# mosquitto/certs/ (voir le wiki, page 16 - Manuel d'installation).
+#
+# Réseaux :
+#   frontend_net : nginx <-> backend
+#   backend_net  : backend <-> db / mosquitto, interne (aucun accès à Internet)
+#   edge_net     : publication du port MQTT 8883 pour les Raspberry Pi
+#                  (Docker ne publie pas de port pour un conteneur seul sur un réseau interne)
+# Seuls les ports 80 (HTTP) et 8883 (MQTT TLS) sont ouverts sur l'extérieur.
+
+services:
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    image: smartnuggets-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - frontend_net
+
+  backend:
+    build: ./backend
+    image: smartnuggets-backend
+    restart: unless-stopped
+    env_file: ./backend/.env
+    environment:
+      MEDIA_DIR: /app/media
+    volumes:
+      - media:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+    networks:
+      - frontend_net
+      - backend_net
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file: ./backend/.env
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend_net
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    restart: unless-stopped
+    ports:
+      - "8883:8883"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config:ro
+      - ./mosquitto/certs:/mosquitto/certs:ro
+      - mosquitto_data:/mosquitto/data
+    networks:
+      - backend_net
+      - edge_net
+
+volumes:
+  pgdata:
+  mosquitto_data:
+  media:
+
+networks:
+  frontend_net:
+  backend_net:
+    internal: true
+  edge_net:
