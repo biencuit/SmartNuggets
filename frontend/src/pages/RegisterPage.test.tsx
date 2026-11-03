@@ -43,7 +43,9 @@ describe("RegisterPage", () => {
 
     await fillForm("marc@example.com", "poulailler42", "poulailler42");
 
-    expect(await screen.findByRole("heading", { name: "Mes poulaillers" })).toBeInTheDocument();
+    // Un nouveau compte n'a pas encore de poulailler : l'accueil propose d'en ajouter un.
+    expect(await screen.findByRole("heading", { name: "Bienvenue" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Ajouter un poulailler" })).toBeInTheDocument();
     expect(calls[0]?.body).toBe(
       JSON.stringify({ email: "marc@example.com", password: "poulailler42" }),
     );

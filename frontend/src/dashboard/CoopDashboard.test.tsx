@@ -42,30 +42,36 @@ function setup(
     events?: CoopEvent[];
     alerts?: CoopAlert[];
     commandStatus?: number;
+    /** Le poulailler a disparu côté serveur : toutes ses routes répondent 404. */
+    gone?: boolean;
   } = {},
 ) {
   localStorage.setItem(TOKEN_KEY, "jeton");
+  const gone = { status: 404, body: { detail: "Poulailler 'coop_01' introuvable" } };
   const calls = mockFetch({
     "GET /api/v1/auth/me": () => ({ body: USER }),
-    [`GET ${BASE}/status`]: () => ({ body: makeStatus(options.status) }),
-    [`GET ${BASE}/events?limit=200`]: () => ({ body: options.events ?? [makeEvent()] }),
-    [`GET ${BASE}/alerts?limit=50`]: () => ({ body: options.alerts ?? [makeAlert()] }),
+    "GET /api/v1/coops": () => ({ body: [{ id: "coop_01", name: "Chez Marc", total_hens: 10 }] }),
+    [`GET ${BASE}/status`]: () => (options.gone ? gone : { body: makeStatus(options.status) }),
+    [`GET ${BASE}/events?limit=200`]: () =>
+      options.gone ? gone : { body: options.events ?? [makeEvent()] },
+    [`GET ${BASE}/alerts?limit=50`]: () =>
+      options.gone ? gone : { body: options.alerts ?? [makeAlert()] },
     [`POST ${BASE}/command`]: () =>
       options.commandStatus
         ? { status: options.commandStatus, body: { detail: "Le poulailler est injoignable" } }
         : { status: 202, body: { command_id: "c1", coop_id: "coop_01", action: "OPEN" } },
     [`POST ${BASE}/alerts/7/ack`]: () => ({ body: makeAlert({ acknowledged: true }) }),
   });
-  renderApp("/poulaillers/coop_01");
+  renderApp("/");
   return calls;
 }
 
-describe("CoopDashboardPage - tableau de bord du poulailler", () => {
+describe("CoopDashboard - tableau de bord du poulailler, sur l'accueil", () => {
   it("affiche la porte, les poules, l'historique du jour et les alertes", async () => {
     setup({ status: { door_state: "CLOSED", inside_count: 8, outside_count: 2 } });
 
-    expect(await screen.findByRole("heading", { name: "Chez Marc" })).toBeInTheDocument();
-    expect(screen.getByText("Fermée")).toBeInTheDocument();
+    expect(await screen.findByText("Fermée")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Chez Marc" })).toBeInTheDocument();
     const hens = screen.getByRole("region", { name: "Poules" });
     expect(within(hens).getByText("8")).toBeInTheDocument();
     expect(within(hens).getByText("2")).toBeInTheDocument();
@@ -180,5 +186,50 @@ describe("CoopDashboardPage - tableau de bord du poulailler", () => {
     expect(screen.getByText("Une poule est sortie")).toBeInTheDocument();
     expect(screen.getByText("Batterie faible")).toBeInTheDocument();
     expect(FakeEventSource.instances).toHaveLength(1);
+  });
+
+  it("affiche le dernier événement et le tient à jour", async () => {
+    setup({
+      events: [makeEvent({ occurred_at: new Date(Date.now() - 60 * 60_000).toISOString() })],
+    });
+
+    expect(await screen.findByText(/^Porte ouverte, le .+ \(Caméra\)$/)).toBeInTheDocument();
+
+    act(() => {
+      const source = FakeEventSource.instances[0];
+      source?.emit(
+        "event",
+        makeEvent({
+          id: 2,
+          event_type: "HEN_ENTRY",
+          trigger_source: null,
+          occurred_at: new Date().toISOString(),
+        }),
+      );
+      // Passage plus ancien, arrivé en retard (file d'attente du Pi après une coupure).
+      source?.emit(
+        "event",
+        makeEvent({
+          id: 3,
+          event_type: "HEN_EXIT",
+          occurred_at: new Date(Date.now() - 3 * 60 * 60_000).toISOString(),
+        }),
+      );
+    });
+
+    expect(screen.getByText(/^Une poule est rentrée, le .+\d$/)).toBeInTheDocument();
+    expect(screen.queryByText(/^Porte ouverte, le /)).not.toBeInTheDocument();
+  });
+
+  it("n'affiche qu'une seule fois l'erreur d'un poulailler introuvable", async () => {
+    setup({ gone: true });
+
+    expect(await screen.findByText("Poulailler 'coop_01' introuvable")).toBeInTheDocument();
+    // L'historique et les alertes échouent aussi : leur erreur ne doit pas se répéter.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(screen.getAllByText(/introuvable/)).toHaveLength(1);
+    expect(screen.queryByText("Chargement du poulailler…")).not.toBeInTheDocument();
   });
 });
