@@ -58,6 +58,16 @@ et une caméra en panne, `r` remet tout en ordre, `o`/`f` ouvrent ou ferment la 
 depuis l'API, `q` arrête tout. Le script crée les environnements Python au premier
 lancement ; depuis WSL, il utilise le Node.js de Windows si besoin.
 
+## Déploiement
+
+Le serveur (VPS Ubuntu) fait tourner `docker-compose.prod.yml` : nginx (application web et
+reverse proxy de l'API), l'API, PostgreSQL et le broker Mosquitto. Seuls les ports 80 (HTTP)
+et 8883 (MQTT en TLS, pour les Raspberry Pi) sont ouverts.
+
+Après chaque CI verte sur `main`, `.github/workflows/deploy.yml` se connecte au VPS et lance
+`scripts/deploy.sh`. Installation complète du serveur : voir le wiki, pages 11 (Hébergement -
+Déploiement) et 16 (Manuel d'installation).
+
 ## Intégration continue
 
 À chaque pull request (et sur `main`), GitHub Actions lance `.github/workflows/ci.yml` :

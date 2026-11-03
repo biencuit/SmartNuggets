@@ -39,3 +39,6 @@ mosquitto/config/passwd
 
 # Données générées par scripts/dev.sh
 .dev/
+
+# Certificats TLS du broker MQTT (générés sur le VPS)
+mosquitto/certs/

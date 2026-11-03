@@ -1,0 +1,58 @@
+# Déploiement continu : après une CI verte sur main (ou à la demande), se connecte en SSH
+# au VPS et lance scripts/deploy.sh (git pull, build des images, redémarrage).
+# Sur le VPS, la clé de déploiement est limitée à cette seule commande (command="…",restrict
+# dans ~/.ssh/authorized_keys) : elle ne donne pas de shell.
+#
+# Secrets du dépôt : VPS_HOST, VPS_USER, VPS_SSH_KEY (clé privée), VPS_KNOWN_HOSTS
+# (empreinte du serveur, sortie de ssh-keyscan vérifiée).
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-vps
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Déploiement sur le VPS
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Préparer la connexion SSH
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Lancer scripts/deploy.sh sur le VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$VPS_USER@$VPS_HOST"
+
+      - name: Vérifier l'application
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: curl -fsS --retry 5 --retry-delay 3 "http://$VPS_HOST/api/v1/health"
+
+      - name: Nettoyer la clé
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
