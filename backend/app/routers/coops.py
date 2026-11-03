@@ -7,13 +7,19 @@ from typing import Annotated
 from fastapi import APIRouter, Query, Request, status
 from fastapi.responses import FileResponse, StreamingResponse
 
-from app.deps import BroadcasterDep, CoopServiceDep, SettingsDep
+from app.deps import (
+    BroadcasterDep,
+    CoopServiceDep,
+    CoopServiceHeaderOrQueryDep,
+    SettingsDep,
+)
 from app.errors import NotFoundError
 from app.models import EventType
 from app.schemas import (
     AlertRead,
     CommandAccepted,
     CommandRequest,
+    CoopCreate,
     CoopRead,
     CoopStatus,
     EventRead,
@@ -26,10 +32,22 @@ Limit = Annotated[int, Query(ge=1, le=200, description="Nombre maximum d'éléme
 Offset = Annotated[int, Query(ge=0, description="Nombre d'éléments à sauter (pagination)")]
 
 
-@router.get("", response_model=list[CoopRead], summary="Liste des poulaillers")
+@router.get("", response_model=list[CoopRead], summary="Poulaillers de l'utilisateur connecté")
 async def list_coops(service: CoopServiceDep) -> list[CoopRead]:
     coops = await service.list_coops()
     return [CoopRead.model_validate(coop) for coop in coops]
+
+
+@router.post(
+    "",
+    response_model=CoopRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Ajouter un poulailler",
+    responses={409: {"description": "Identifiant déjà utilisé"}},
+)
+async def create_coop(data: CoopCreate, service: CoopServiceDep) -> CoopRead:
+    coop = await service.create_coop(data)
+    return CoopRead.model_validate(coop)
 
 
 @router.get("/{coop_id}/status", response_model=CoopStatus, summary="État actuel du poulailler")
@@ -110,7 +128,7 @@ async def send_command(
     summary="Photo associée à une alerte",
 )
 async def get_alert_image(
-    coop_id: str, alert_id: int, service: CoopServiceDep, settings: SettingsDep
+    coop_id: str, alert_id: int, service: CoopServiceHeaderOrQueryDep, settings: SettingsDep
 ) -> FileResponse:
     alert = await service.get_alert(coop_id, alert_id)
     if alert.image_url is None:
@@ -129,11 +147,15 @@ async def get_alert_image(
     summary="Flux temps réel (Server-Sent Events)",
     description=(
         "Événements `status` (état complet du poulailler), `event` (passage, porte) et "
-        "`alert`. Un commentaire `: ping` est envoyé toutes les 15 s."
+        "`alert`. Un commentaire `: ping` est envoyé toutes les 15 s. EventSource ne pouvant "
+        "pas envoyer d'en-tête, le jeton peut être passé en paramètre `?token=`."
     ),
 )
 async def stream(
-    coop_id: str, request: Request, service: CoopServiceDep, broadcaster: BroadcasterDep
+    coop_id: str,
+    request: Request,
+    service: CoopServiceHeaderOrQueryDep,
+    broadcaster: BroadcasterDep,
 ) -> StreamingResponse:
     await service.get_coop(coop_id)
     # Le flux peut rester ouvert des heures : on rend la connexion à la base tout de suite.

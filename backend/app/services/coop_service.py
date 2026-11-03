@@ -1,29 +1,43 @@
 """Logique métier liée aux poulaillers : état, historique, alertes, commandes."""
 
+import uuid
 from collections.abc import Sequence
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.errors import NotFoundError
+from app.errors import ConflictError, NotFoundError
 from app.models import Alert, Coop, Event
 from app.repositories import AlertRepository, CoopRepository, EventRepository
-from app.schemas import CommandRequest, CoopStatus
+from app.schemas import CommandRequest, CoopCreate, CoopStatus
 from app.services.commands import CommandPublisher, DoorCommand
 
 
 class CoopService:
-    def __init__(self, session: AsyncSession, publisher: CommandPublisher) -> None:
+    """Toutes les opérations sont limitées aux poulaillers de l'utilisateur connecté."""
+
+    def __init__(
+        self, session: AsyncSession, publisher: CommandPublisher, owner_id: uuid.UUID
+    ) -> None:
         self.session = session
         self.publisher = publisher
+        self.owner_id = owner_id
         self.coops = CoopRepository(session)
         self.events = EventRepository(session)
         self.alerts = AlertRepository(session)
 
     async def list_coops(self) -> Sequence[Coop]:
-        return await self.coops.list()
+        return await self.coops.list(owner_id=self.owner_id)
+
+    async def create_coop(self, data: CoopCreate) -> Coop:
+        if await self.coops.get(data.id) is not None:
+            raise ConflictError(f"L'identifiant {data.id!r} est déjà utilisé")
+        coop = await self.coops.add(Coop(owner_id=self.owner_id, **data.model_dump()))
+        await self.session.commit()
+        return coop
 
     async def get_coop(self, coop_id: str) -> Coop:
-        coop = await self.coops.get(coop_id)
+        # Le poulailler d'un autre éleveur répond "introuvable" : on ne révèle pas qu'il existe.
+        coop = await self.coops.get(coop_id, owner_id=self.owner_id)
         if coop is None:
             raise NotFoundError(f"Poulailler {coop_id!r} introuvable")
         return coop
