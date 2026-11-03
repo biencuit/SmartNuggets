@@ -22,7 +22,7 @@ from app.models import Coop, DoorState, User
 @pytest.fixture
 def settings(tmp_path) -> Settings:
     url = os.environ.get("TEST_DATABASE_URL", f"sqlite+aiosqlite:///{tmp_path / 'test.db'}")
-    return Settings(database_url=url)
+    return Settings(database_url=url, media_dir=str(tmp_path / "media"))
 
 
 @pytest.fixture
