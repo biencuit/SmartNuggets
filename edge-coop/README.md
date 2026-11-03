@@ -24,8 +24,12 @@ uplink.start()
 
 uplink.send_event("HEN_ENTRY", inside_count=9, trigger_source="AI_AUTO", ai_confidence=0.93)
 uplink.send_alert("PREDATOR_DETECTED", "CRITICAL", ai_confidence=0.88, image=jpeg_bytes)
-uplink.send_telemetry(battery_level=76)   # battement de cœur périodique
+uplink.send_telemetry(battery_level=76, camera_ok=True)   # battement de cœur
 ```
+
+**Battement de cœur** : envoyer une télémétrie au moins toutes les 5 minutes (batterie,
+état de la caméra). Sans nouvelles pendant 15 minutes, l'application affiche le poulailler
+« hors ligne » et crée une alerte.
 
 `on_command` est appelé depuis le thread réseau : il doit rendre la main tout de suite
 (par exemple en déposant la commande dans une file lue par le contrôleur de porte).

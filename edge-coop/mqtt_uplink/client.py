@@ -130,13 +130,17 @@ class MqttUplink:
         door_state: str | None = None,
         inside_count: int | None = None,
         battery_level: int | None = None,
+        camera_ok: bool | None = None,
         event: dict[str, Any] | None = None,
     ) -> None:
+        """État courant. À envoyer aussi périodiquement (au moins toutes les 5 minutes) :
+        le serveur considère le poulailler hors ligne après 15 minutes sans nouvelles."""
         payload: dict[str, Any] = {"sent_at": utc_iso(self.clock())}
         for key, value in (
             ("door_state", door_state),
             ("inside_count", inside_count),
             ("battery_level", battery_level),
+            ("camera_ok", camera_ok),
             ("event", event),
         ):
             if value is not None:

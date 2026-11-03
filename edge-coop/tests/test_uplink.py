@@ -32,7 +32,7 @@ def test_messages_gardes_pendant_une_coupure_puis_envoyes_dans_l_ordre(
     uplink: MqttUplink, fake_client: FakePahoClient, outbox: Outbox
 ) -> None:
     uplink.send_event("HEN_EXIT", inside_count=9, trigger_source="AI_AUTO", ai_confidence=0.9)
-    uplink.send_telemetry(battery_level=80)
+    uplink.send_telemetry(battery_level=80, camera_ok=True)
     assert uplink.send_pending() == 0
     assert len(outbox) == 2
 
@@ -47,7 +47,11 @@ def test_messages_gardes_pendant_une_coupure_puis_envoyes_dans_l_ordre(
         "trigger_source": "AI_AUTO",
         "ai_confidence": 0.9,
     }
-    assert telemetry[1] == {"sent_at": "2026-11-03T08:00:00Z", "battery_level": 80}
+    assert telemetry[1] == {
+        "sent_at": "2026-11-03T08:00:00Z",
+        "battery_level": 80,
+        "camera_ok": True,
+    }
     assert len(outbox) == 0
 
 
