@@ -89,6 +89,22 @@ l'API lance au démarrage un client MQTT (`app/mqtt/worker.py`) qui :
 
 Sans `MQTT_ENABLED`, l'API fonctionne seule et les commandes sont simplement gardées en mémoire.
 
+## État du système (santé du Raspberry Pi)
+
+`GET /coops/{id}/status` renvoie aussi :
+
+- `online` : vrai si le Pi est connecté au broker (topic `status`, Last Will) **et** s'il a
+  donné des nouvelles depuis moins de `DEVICE_OFFLINE_AFTER_S` (15 min par défaut) ;
+- `battery` (%) et `camera_ok`, envoyés par le Pi dans sa télémétrie ;
+- `last_seen_at` : heure du dernier message reçu.
+
+Alertes automatiques :
+
+| Alerte | Quand |
+|---|---|
+| `DEVICE_OFFLINE` | aucune nouvelle depuis 15 min (vérifié chaque minute, une alerte par coupure) |
+| `LOW_BATTERY` | la batterie passe sous 20 % (une alerte par décharge, pas à chaque message) |
+
 ## Organisation du code
 
 ```
