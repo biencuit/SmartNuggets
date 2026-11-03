@@ -52,7 +52,24 @@ uvicorn app.main:create_app --factory --reload
 | GET | `/coops/{coop_id}/events?type=&limit=&offset=` | Historique paginé des passages et événements |
 | GET | `/coops/{coop_id}/alerts?acknowledged=&limit=&offset=` | Alertes, de la plus récente à la plus ancienne |
 | POST | `/coops/{coop_id}/alerts/{alert_id}/ack` | Marquer une alerte comme lue |
+| GET | `/coops/{coop_id}/alerts/{alert_id}/image` | Photo associée à une alerte |
 | POST | `/coops/{coop_id}/command` | Commande manuelle `OPEN`, `CLOSE` ou `CALIBRATE` (+ `inside_count`) |
+| GET | `/coops/{coop_id}/stream` | Flux temps réel (Server-Sent Events) : `status`, `event`, `alert` |
+
+## Communication avec le Raspberry Pi (MQTT)
+
+Le Pi du poulailler est relié à Internet par câble RJ45 et parle directement au broker
+Mosquitto du VPS (topics et sécurité : voir `mosquitto/README.md`). Avec `MQTT_ENABLED=true`,
+l'API lance au démarrage un client MQTT (`app/mqtt/worker.py`) qui :
+
+- écoute `smartnuggets/+/telemetry`, `alerts` et `status`, met la base à jour
+  (`app/services/ingestion.py`) et pousse chaque changement sur le flux SSE ;
+- publie les commandes manuelles sur `smartnuggets/{coop_id}/commands` (QoS 1) ;
+  si le broker est injoignable, `POST /command` répond `503` ;
+- se reconnecte tout seul et garde une session persistante : les messages envoyés par les
+  poulaillers pendant un redémarrage de l'API ne sont pas perdus.
+
+Sans `MQTT_ENABLED`, l'API fonctionne seule et les commandes sont simplement gardées en mémoire.
 
 ## Organisation du code
 
@@ -62,6 +79,7 @@ app/
 ├── config.py        # variables d'environnement (pydantic-settings)
 ├── db.py            # moteur SQLAlchemy async
 ├── models.py        # tables : users, coops, events, alerts
+├── mqtt/            # topics, format des messages, client MQTT
 ├── schemas.py       # entrées / sorties de l'API (Pydantic)
 ├── routers/         # routes HTTP
 ├── services/        # logique métier
