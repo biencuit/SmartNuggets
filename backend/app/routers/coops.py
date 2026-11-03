@@ -1,10 +1,14 @@
 """Routes des poulaillers : état, historique, alertes et commandes manuelles."""
 
+from collections.abc import AsyncIterator
+from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Query, Request, status
+from fastapi.responses import FileResponse, StreamingResponse
 
-from app.deps import CoopServiceDep
+from app.deps import BroadcasterDep, CoopServiceDep, SettingsDep
+from app.errors import NotFoundError
 from app.models import EventType
 from app.schemas import (
     AlertRead,
@@ -14,6 +18,7 @@ from app.schemas import (
     CoopStatus,
     EventRead,
 )
+from app.services.sse import event_stream
 
 router = APIRouter(prefix="/api/v1/coops", tags=["poulaillers"])
 
@@ -96,4 +101,51 @@ async def send_command(
         action=command.action,
         inside_count=command.inside_count,
         issued_at=command.issued_at,
+    )
+
+
+@router.get(
+    "/{coop_id}/alerts/{alert_id}/image",
+    response_class=FileResponse,
+    summary="Photo associée à une alerte",
+)
+async def get_alert_image(
+    coop_id: str, alert_id: int, service: CoopServiceDep, settings: SettingsDep
+) -> FileResponse:
+    alert = await service.get_alert(coop_id, alert_id)
+    if alert.image_url is None:
+        raise NotFoundError("Cette alerte n'a pas de photo")
+    folder = Path(settings.media_dir) / coop_id
+    for extension, media_type in (("jpeg", "image/jpeg"), ("webp", "image/webp")):
+        path = folder / f"{alert.id}.{extension}"
+        if path.is_file():
+            return FileResponse(path, media_type=media_type)
+    raise NotFoundError("Photo introuvable")
+
+
+@router.get(
+    "/{coop_id}/stream",
+    response_class=StreamingResponse,
+    summary="Flux temps réel (Server-Sent Events)",
+    description=(
+        "Événements `status` (état complet du poulailler), `event` (passage, porte) et "
+        "`alert`. Un commentaire `: ping` est envoyé toutes les 15 s."
+    ),
+)
+async def stream(
+    coop_id: str, request: Request, service: CoopServiceDep, broadcaster: BroadcasterDep
+) -> StreamingResponse:
+    await service.get_coop(coop_id)
+    # Le flux peut rester ouvert des heures : on rend la connexion à la base tout de suite.
+    await service.session.close()
+
+    async def body() -> AsyncIterator[str]:
+        async with broadcaster.subscribe(coop_id) as queue:
+            async for chunk in event_stream(queue, request.is_disconnected):
+                yield chunk
+
+    return StreamingResponse(
+        body(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )

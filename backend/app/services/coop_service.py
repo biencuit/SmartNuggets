@@ -48,11 +48,15 @@ class CoopService:
             coop_id, acknowledged=acknowledged, limit=limit, offset=offset
         )
 
-    async def acknowledge_alert(self, coop_id: str, alert_id: int) -> Alert:
+    async def get_alert(self, coop_id: str, alert_id: int) -> Alert:
         await self.get_coop(coop_id)
         alert = await self.alerts.get(coop_id, alert_id)
         if alert is None:
             raise NotFoundError(f"Alerte {alert_id} introuvable")
+        return alert
+
+    async def acknowledge_alert(self, coop_id: str, alert_id: int) -> Alert:
+        alert = await self.get_alert(coop_id, alert_id)
         alert.acknowledged = True
         await self.session.commit()
         return alert
