@@ -17,6 +17,7 @@ from app.mqtt.worker import MqttCommandPublisher, MqttWorker
 from app.routers import auth, coops, health
 from app.services.broadcaster import Broadcaster
 from app.services.commands import InMemoryCommandPublisher
+from app.services.health import DeviceWatchdog
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        tasks: list[asyncio.Task[None]] = []
+        watchdog = DeviceWatchdog(
+            sessionmaker,
+            broadcaster,
+            settings.device_offline_after_s,
+            settings.health_check_interval_s,
+        )
+        tasks: list[asyncio.Task[None]] = [asyncio.create_task(watchdog.run(), name="watchdog")]
         if settings.mqtt_enabled:
             worker = MqttWorker(settings, sessionmaker, broadcaster)
             app.state.command_publisher = MqttCommandPublisher(worker)

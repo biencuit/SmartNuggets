@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,3 +37,15 @@ class AlertRepository:
         self.session.add(alert)
         await self.session.flush()
         return alert
+
+    async def exists_since(self, coop_id: str, alert_type: str, since: datetime) -> bool:
+        result = await self.session.execute(
+            select(Alert.id)
+            .where(
+                Alert.coop_id == coop_id,
+                Alert.alert_type == alert_type,
+                Alert.created_at >= since,
+            )
+            .limit(1)
+        )
+        return result.first() is not None

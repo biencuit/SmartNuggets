@@ -1,5 +1,6 @@
 import uuid
 from collections.abc import Sequence
+from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,3 +31,10 @@ class CoopRepository:
         self.session.add(coop)
         await self.session.flush()
         return coop
+
+    async def list_silent_since(self, before: datetime) -> Sequence[Coop]:
+        """Poulaillers déjà vus, mais sans nouvelles depuis `before`."""
+        result = await self.session.execute(
+            select(Coop).where(Coop.last_seen_at.is_not(None), Coop.last_seen_at < before)
+        )
+        return result.scalars().all()
