@@ -24,3 +24,11 @@ build/
 datasets/
 *.pt
 *.onnx
+
+# Python : outils et bases locales
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+*.db
