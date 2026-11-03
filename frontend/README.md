@@ -33,27 +33,36 @@ src/
 ├── api/client.ts          # appels à l'API, messages d'erreur en français
 ├── auth/                  # jeton de connexion (localStorage), useAuth()
 ├── components/            # ProtectedRoute, en-tête, mise en page, champs de formulaire
-├── dashboard/             # cartes du tableau de bord : porte, poules, historique, alertes
-├── pages/                 # Connexion, Inscription, Accueil, Tableau de bord
+├── dashboard/             # tableau de bord (porte, poules, historique, alertes), ajout d'un poulailler
+├── pages/                 # Connexion, Inscription, Accueil
 ├── status/                # état du poulailler en temps réel (SSE)
 └── test/                  # configuration des tests et faux fetch
 ```
 
 ## Pages
 
-| Route                  | Page                                              |
-| ---------------------- | ------------------------------------------------- |
-| `/connexion`           | connexion                                         |
-| `/inscription`         | création de compte                                |
-| `/`                    | mes poulaillers, avec l'état du système de chacun |
-| `/poulaillers/:coopId` | tableau de bord d'un poulailler (issue #26)       |
+| Route                  | Page                                                               |
+| ---------------------- | ------------------------------------------------------------------ |
+| `/connexion`           | connexion                                                          |
+| `/inscription`         | création de compte                                                 |
+| `/`                    | accueil : tableau de bord du premier poulailler du compte (#26)    |
+| `/poulaillers/:coopId` | accueil sur ce poulailler (lien direct, sélecteur des poulaillers) |
+
+L'accueil **est** le tableau de bord. Quand le compte a plusieurs poulaillers, des boutons en haut
+de page passent de l'un à l'autre. Un identifiant qui n'est pas dans la liste du compte affiche
+un message, sans appel à l'API. Un compte sans poulailler voit le formulaire **Ajouter un
+poulailler** (`POST /coops`) : l'identifiant est celui du compte MQTT du Raspberry Pi (par
+exemple `coop_01`) ; l'API répond 409 s'il est déjà pris par un autre compte.
 
 Le tableau de bord regroupe :
 
+- **Dernier événement** : sous le nom du poulailler, le dernier passage ou mouvement de porte,
+  avec sa date et sa source.
 - **Porte** : état, ouverture et fermeture manuelles (`POST /command`). Les boutons sont
   désactivés quand le poulailler est hors ligne ; après une alerte prédateur non lue de moins de
   30 minutes, l'ouverture demande une confirmation.
 - **Poules** : dedans, dehors, et correction du compteur (`CALIBRATE`).
+- **État du système** : connexion, batterie, caméra (issue #28).
 - **Historique de la porte** : jour par jour, frise des périodes d'ouverture sur 24 h, nombre
   d'ouvertures, première ouverture, dernière fermeture, passages des poules. Les 200 derniers
   événements sont chargés.
