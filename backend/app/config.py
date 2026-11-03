@@ -13,6 +13,15 @@ class Settings(BaseSettings):
     # SQLite par défaut pour le développement local ; PostgreSQL (asyncpg) en production.
     database_url: str = "sqlite+aiosqlite:///./smartnuggets.db"
 
+    # Authentification (JWT signé HS256). Sans clé, une clé aléatoire est générée au
+    # démarrage : pratique en développement, mais les sessions sont perdues à chaque relance.
+    jwt_secret_key: str | None = None
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 1440
+
+    # Origines autorisées à appeler l'API depuis un navigateur (frontend).
+    cors_origins: list[str] = ["http://localhost:5173"]
+
     # Photos des alertes envoyées par le Raspberry Pi.
     media_dir: str = "media"
     max_image_bytes: int = 2_000_000

@@ -5,7 +5,7 @@ from datetime import datetime, time
 from enum import StrEnum
 from typing import Annotated, Self
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field, model_validator
+from pydantic import AfterValidator, BaseModel, ConfigDict, EmailStr, Field, model_validator
 
 from app.models import AlertType, DoorState, EventType, Severity, TriggerSource
 from app.timeutils import ensure_utc
@@ -15,6 +15,33 @@ UtcDatetime = Annotated[datetime, AfterValidator(ensure_utc)]
 
 class ORMModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
+
+
+class UserCreate(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=128)
+
+
+class UserRead(ORMModel):
+    id: uuid.UUID
+    email: str
+    created_at: UtcDatetime
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
+class CoopCreate(BaseModel):
+    id: str = Field(
+        pattern=r"^[A-Za-z0-9_-]{1,64}$",
+        description="Identifiant du poulailler, identique au compte MQTT du Raspberry Pi",
+        examples=["coop_01"],
+    )
+    name: str = Field(min_length=1, max_length=100)
+    total_hens: int = Field(default=0, ge=0, le=1000)
+    auto_close_time: time | None = None
 
 
 class CoopRead(ORMModel):
