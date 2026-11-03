@@ -31,7 +31,11 @@ jobs:
             backend/pyproject.toml
             edge-coop/pyproject.toml
       - name: Installer les dépendances
-        run: pip install -e "backend[dev]" -e "edge-coop[dev]" pip-audit
+        run: |
+          # pip et setuptools sont préinstallés dans l'image GitHub : on les met à jour pour
+          # que pip-audit ne signale que les failles de nos propres dépendances.
+          python -m pip install --upgrade pip setuptools
+          pip install -e "backend[dev]" -e "edge-coop[dev]" pip-audit
       - name: Backend - ruff, black, bandit
         working-directory: backend
         run: |
