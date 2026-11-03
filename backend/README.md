@@ -21,7 +21,7 @@ fichier SQLite local `smartnuggets.db`.
 
 ```bash
 alembic upgrade head      # crée / met à jour le schéma
-python -m app.seed        # données de démo : poulailler coop_01
+python -m app.seed        # compte demo@smartnuggets.be / poulailler + poulailler coop_01
 ```
 
 Pour PostgreSQL, copier `.env.example` en `.env` et adapter `DATABASE_URL`.
@@ -42,12 +42,30 @@ uvicorn app.main:create_app --factory --reload
 - Documentation interactive (OpenAPI / Swagger) : http://localhost:8000/docs
 - Schéma OpenAPI brut : http://localhost:8000/openapi.json
 
+## Authentification
+
+- `POST /api/v1/auth/register` crée un compte (`email`, `password` de 8 caractères minimum).
+  Le mot de passe est haché avec **Argon2id** ; il n'est jamais stocké ni renvoyé.
+- `POST /api/v1/auth/login` (formulaire `username` = email, `password`) renvoie un jeton JWT
+  valable 24 h, à envoyer ensuite dans l'en-tête `Authorization: Bearer <jeton>`.
+  Dans Swagger (`/docs`), le bouton **Authorize** fait la même chose.
+- Toutes les routes `/coops` exigent ce jeton et ne donnent accès qu'aux poulaillers de
+  l'utilisateur connecté (ceux d'un autre éleveur répondent `404`).
+- `/stream` et `/image` acceptent aussi `?token=<jeton>`, parce qu'`EventSource` et `<img>`
+  ne peuvent pas envoyer d'en-tête.
+- En production, `JWT_SECRET_KEY` doit être définie. Sans elle, une clé temporaire est générée
+  et les sessions sont perdues à chaque redémarrage.
+
 ## Endpoints (préfixe `/api/v1`)
 
 | Méthode | Route | Description |
 |---|---|---|
-| GET | `/health` | L'API répond |
-| GET | `/coops` | Liste des poulaillers |
+| GET | `/health` | L'API répond (public) |
+| POST | `/auth/register` | Créer un compte (public) |
+| POST | `/auth/login` | Se connecter, renvoie un jeton (public) |
+| GET | `/auth/me` | Profil de l'utilisateur connecté |
+| GET | `/coops` | Poulaillers de l'utilisateur connecté |
+| POST | `/coops` | Ajouter un poulailler (`id` = compte MQTT du Raspberry Pi) |
 | GET | `/coops/{coop_id}/status` | État actuel : porte, compteurs, batterie, dernière communication |
 | GET | `/coops/{coop_id}/events?type=&limit=&offset=` | Historique paginé des passages et événements |
 | GET | `/coops/{coop_id}/alerts?acknowledged=&limit=&offset=` | Alertes, de la plus récente à la plus ancienne |
@@ -81,6 +99,7 @@ app/
 ├── models.py        # tables : users, coops, events, alerts
 ├── mqtt/            # topics, format des messages, client MQTT
 ├── schemas.py       # entrées / sorties de l'API (Pydantic)
+├── security.py      # hachage Argon2id, jetons JWT
 ├── routers/         # routes HTTP
 ├── services/        # logique métier
 └── repositories/    # requêtes SQL (via l'ORM, jamais de SQL concaténé)
