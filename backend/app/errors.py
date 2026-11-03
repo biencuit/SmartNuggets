@@ -10,7 +10,19 @@ class NotFoundError(Exception):
         self.detail = detail
 
 
+class ServiceUnavailableError(Exception):
+    def __init__(self, detail: str) -> None:
+        super().__init__(detail)
+        self.detail = detail
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(NotFoundError)
     async def not_found_handler(_: Request, exc: NotFoundError) -> JSONResponse:
         return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"detail": exc.detail})
+
+    @app.exception_handler(ServiceUnavailableError)
+    async def unavailable_handler(_: Request, exc: ServiceUnavailableError) -> JSONResponse:
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, content={"detail": exc.detail}
+        )

@@ -94,6 +94,8 @@ class Coop(Base):
     auto_close_time: Mapped[time | None] = mapped_column(Time)
     battery_level: Mapped[int | None] = mapped_column(Integer)
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Connexion MQTT du Raspberry Pi (topic status, alimenté par le Last Will).
+    is_online: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
 
     owner: Mapped[User] = relationship(back_populates="coops")
 
