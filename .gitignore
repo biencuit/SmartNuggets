@@ -32,3 +32,7 @@ datasets/
 .coverage
 coverage.xml
 *.db
+
+# Photos d'alertes et mots de passe MQTT
+backend/media/
+mosquitto/config/passwd

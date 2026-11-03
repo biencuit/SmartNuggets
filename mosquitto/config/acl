@@ -1,0 +1,15 @@
+# Droits d'accès MQTT SmartNuggets.
+# Le nom d'utilisateur MQTT d'un Raspberry Pi est l'identifiant de son poulailler (ex. coop_01).
+
+# Raspberry Pi : uniquement les topics de son propre poulailler (%u = nom d'utilisateur).
+pattern write smartnuggets/%u/telemetry
+pattern write smartnuggets/%u/alerts
+pattern write smartnuggets/%u/status
+pattern read smartnuggets/%u/commands
+
+# API : écoute tous les poulaillers et leur envoie les commandes.
+user backend_service
+topic read smartnuggets/+/telemetry
+topic read smartnuggets/+/alerts
+topic read smartnuggets/+/status
+topic write smartnuggets/+/commands
