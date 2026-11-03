@@ -36,3 +36,6 @@ coverage.xml
 # Photos d'alertes et mots de passe MQTT
 backend/media/
 mosquitto/config/passwd
+
+# Données générées par scripts/dev.sh
+.dev/

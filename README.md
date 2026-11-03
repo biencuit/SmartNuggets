@@ -39,6 +39,24 @@ Capteur de présence -> Caméra -> Unité de traitement (détection)
 | `edge-coop/` | Code du Raspberry Pi du poulailler : liaison MQTT avec le serveur |
 | `mosquitto/` | Configuration du broker MQTT (TLS, comptes, droits) |
 | `Python-RP5/` | Commande du moteur de la porte |
+| `scripts/` | Outils de développement (`dev.sh` : tout lancer en local) |
+
+## Lancer le projet en local
+
+Sous Linux ou WSL, une seule commande lance le broker MQTT, l'API, un faux Raspberry Pi
+et l'application web :
+
+```bash
+sudo apt install -y mosquitto   # une seule fois
+bash scripts/dev.sh             # --reset pour repartir d'une base neuve, --help pour les options
+```
+
+L'application est alors sur http://localhost:5173 (compte `demo@smartnuggets.be`,
+mot de passe `poulailler`) et l'API sur http://localhost:8000/docs. Des touches permettent
+de tester sans matériel : `p` coupe ou rallume le faux Pi, `b` simule une batterie faible
+et une caméra en panne, `r` remet tout en ordre, `o`/`f` ouvrent ou ferment la porte
+depuis l'API, `q` arrête tout. Le script crée les environnements Python au premier
+lancement ; depuis WSL, il utilise le Node.js de Windows si besoin.
 
 ## Intégration continue
 
