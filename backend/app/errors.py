@@ -16,6 +16,12 @@ class ConflictError(Exception):
         self.detail = detail
 
 
+class ForbiddenError(Exception):
+    def __init__(self, detail: str) -> None:
+        super().__init__(detail)
+        self.detail = detail
+
+
 class UnauthorizedError(Exception):
     def __init__(self, detail: str = "Authentification requise") -> None:
         super().__init__(detail)
@@ -36,6 +42,10 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(ConflictError)
     async def conflict_handler(_: Request, exc: ConflictError) -> JSONResponse:
         return JSONResponse(status_code=status.HTTP_409_CONFLICT, content={"detail": exc.detail})
+
+    @app.exception_handler(ForbiddenError)
+    async def forbidden_handler(_: Request, exc: ForbiddenError) -> JSONResponse:
+        return JSONResponse(status_code=status.HTTP_403_FORBIDDEN, content={"detail": exc.detail})
 
     @app.exception_handler(UnauthorizedError)
     async def unauthorized_handler(_: Request, exc: UnauthorizedError) -> JSONResponse:
