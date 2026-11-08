@@ -79,10 +79,29 @@ class User(Base):
     coops: Mapped[list["Coop"]] = relationship(back_populates="owner")
 
 
+class Device(Base):
+    """Raspberry Pi enregistré par l'équipe (`python -m app.new_coop`).
+
+    Un éleveur ne peut ajouter le poulailler à son compte qu'avec le code d'appairage du Pi.
+    """
+
+    __tablename__ = "devices"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)  # = compte MQTT du Pi
+    # Hash du code d'appairage (comme un mot de passe). Vidé dès que le code a servi.
+    claim_code_hash: Mapped[str | None] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # Date à laquelle le poulailler a été ajouté à un compte (None : pas encore).
+    claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class Coop(Base):
     __tablename__ = "coops"
 
-    id: Mapped[str] = mapped_column(String(64), primary_key=True)  # ex. "coop_01"
+    # ex. "coop_01" : un poulailler n'existe que pour un Raspberry Pi enregistré.
+    id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("devices.id", ondelete="CASCADE"), primary_key=True
+    )
     owner_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
