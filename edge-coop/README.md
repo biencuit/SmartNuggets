@@ -5,6 +5,10 @@
 Le Raspberry Pi est relié à Internet par câble RJ45 et publie directement sur le broker
 MQTT du VPS, en TLS (port 8883). Topics et droits : voir `mosquitto/README.md`.
 
+**Installer un nouveau Pi** : sur le VPS, `bash scripts/new-coop.sh coop_02` affiche le `.env`
+à copier sur le Pi (compte MQTT et mot de passe) et le code d'appairage à coller sur le
+boîtier. L'éleveur tape ce code dans l'application pour ajouter le poulailler à son compte.
+
 - **File d'attente locale** : chaque message passe par une base SQLite (`Outbox`). Si Internet
   ou le serveur tombe, les messages s'accumulent et repartent dans l'ordre dès le retour de
   la connexion, même après un redémarrage du Pi. Un message n'est retiré qu'après l'accusé

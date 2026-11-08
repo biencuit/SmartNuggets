@@ -21,6 +21,13 @@ Relie les Raspberry Pi des poulaillers (connectés à Internet par câble RJ45) 
 
 Le fichier `config/passwd` contient les mots de passe hachés : il n'est jamais commité.
 
+**Nouveau Raspberry Pi sur le VPS** : `bash scripts/new-coop.sh coop_02`. Le script crée le
+compte MQTT avec un mot de passe aléatoire, enregistre le Pi dans la base avec son code
+d'appairage, puis affiche le `.env` du Pi et le code. Le broker relit les mots de passe sans
+couper les autres Pi.
+
+À la main (par exemple pour le compte de l'API) :
+
 ```bash
 docker run --rm -it -v "$PWD/config:/mosquitto/config" eclipse-mosquitto:2 \
   mosquitto_passwd -c /mosquitto/config/passwd backend_service

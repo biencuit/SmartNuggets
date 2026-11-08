@@ -52,7 +52,8 @@ bash scripts/dev.sh             # --reset pour repartir d'une base neuve, --help
 ```
 
 L'application est alors sur http://localhost:5173 (compte `demo@smartnuggets.be`,
-mot de passe `poulailler`) et l'API sur http://localhost:8000/docs. Des touches permettent
+mot de passe `poulailler` ; pour tester l'ajout d'un poulailler : `coop_02`, code
+`DEMO-DEMO-0002`) et l'API sur http://localhost:8000/docs. Des touches permettent
 de tester sans matériel : `p` coupe ou rallume le faux Pi, `b` simule une batterie faible
 et une caméra en panne, `r` remet tout en ordre, `o`/`f` ouvrent ou ferment la porte
 depuis l'API, `q` arrête tout. Le script crée les environnements Python au premier
@@ -67,6 +68,10 @@ et 8883 (MQTT en TLS, pour les Raspberry Pi) sont ouverts.
 Après chaque CI verte sur `main`, `.github/workflows/deploy.yml` se connecte au VPS et lance
 `scripts/deploy.sh`. Installation complète du serveur : voir le wiki, pages 11 (Hébergement -
 Déploiement) et 16 (Manuel d'installation).
+
+Pour ajouter un nouveau Raspberry Pi, lancer `bash scripts/new-coop.sh coop_02` sur le VPS. Le
+script affiche le `.env` à copier sur le Pi et le code d'appairage à écrire sur l'étiquette du
+boîtier. L'éleveur tape ce code dans l'application pour ajouter le poulailler à son compte.
 
 ## Intégration continue
 
