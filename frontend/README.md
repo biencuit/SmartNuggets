@@ -51,8 +51,9 @@ src/
 L'accueil **est** le tableau de bord. Quand le compte a plusieurs poulaillers, des boutons en haut
 de page passent de l'un à l'autre. Un identifiant qui n'est pas dans la liste du compte affiche
 un message, sans appel à l'API. Un compte sans poulailler voit le formulaire **Ajouter un
-poulailler** (`POST /coops`) : l'identifiant est celui du compte MQTT du Raspberry Pi (par
-exemple `coop_01`) ; l'API répond 409 s'il est déjà pris par un autre compte.
+poulailler** (`POST /coops`) : il faut l'identifiant du Raspberry Pi (par exemple `coop_01`)
+et son code d'appairage, écrits sur l'étiquette du boîtier. Le code ne marche qu'une fois ; si
+l'identifiant ou le code est faux, l'API répond 403 avec le même message dans tous les cas.
 
 Le tableau de bord regroupe :
 

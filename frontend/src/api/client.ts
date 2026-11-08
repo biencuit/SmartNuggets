@@ -29,6 +29,11 @@ export interface Coop {
   total_hens: number;
 }
 
+/** Ajout d'un poulailler : il faut aussi le code d'appairage du Raspberry Pi. */
+export interface CoopCreate extends Coop {
+  claim_code: string;
+}
+
 export type DoorState = "OPEN" | "CLOSED" | "OPENING" | "CLOSING" | "ERROR";
 
 export interface CoopStatus {
@@ -162,7 +167,7 @@ export const api = {
   me: (token: string) => apiFetch<User>("/auth/me", { token }),
   listCoops: (token: string) => apiFetch<Coop[]>("/coops", { token }),
   /** L'identifiant est celui du compte MQTT du Raspberry Pi (409 s'il est déjà pris). */
-  createCoop: (token: string, coop: Coop) =>
+  createCoop: (token: string, coop: CoopCreate) =>
     apiFetch<Coop>("/coops", { method: "POST", token, json: coop }),
   getStatus: (token: string, coopId: string) =>
     apiFetch<CoopStatus>(`/coops/${encodeURIComponent(coopId)}/status`, { token }),

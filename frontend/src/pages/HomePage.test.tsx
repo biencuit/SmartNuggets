@@ -2,7 +2,7 @@ import { act, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
-import type { Coop } from "../api/client";
+import type { Coop, CoopCreate } from "../api/client";
 import { TOKEN_KEY } from "../auth/context";
 import { FakeEventSource } from "../test/FakeEventSource";
 import { mockFetch, USER } from "../test/fetchMock";
@@ -25,10 +25,11 @@ function setup(coops: Coop[], options: { path?: string; createStatus?: number } 
       if (options.createStatus) {
         return {
           status: options.createStatus,
-          body: { detail: "L'identifiant 'coop_01' est déjà utilisé" },
+          body: { detail: "Identifiant ou code d'appairage incorrect" },
         };
       }
-      const created = JSON.parse(call.body ?? "{}") as Coop;
+      const sent = JSON.parse(call.body ?? "{}") as CoopCreate;
+      const created: Coop = { id: sent.id, name: sent.name, total_hens: sent.total_hens };
       coops.push(created);
       return { status: 201, body: created };
     },
@@ -46,9 +47,12 @@ function setup(coops: Coop[], options: { path?: string; createStatus?: number } 
   return calls;
 }
 
-async function fillCoopForm(id: string, name: string, hens: string) {
+const CODE = "K7QM-3XRA-PZ8D";
+
+async function fillCoopForm(id: string, name: string, hens: string, code = CODE) {
   const user = userEvent.setup();
   await user.type(await screen.findByLabelText("Identifiant du poulailler"), id);
+  await user.type(screen.getByLabelText("Code d'appairage"), code);
   await user.type(screen.getByLabelText("Nom"), name);
   await user.type(screen.getByLabelText("Nombre de poules"), hens);
   await user.click(screen.getByRole("button", { name: "Ajouter le poulailler" }));
@@ -93,6 +97,7 @@ describe("HomePage - l'accueil est le tableau de bord", () => {
     const created = calls.find((call) => call.method === "POST" && call.url === "/api/v1/coops");
     expect(JSON.parse(created?.body ?? "{}")).toEqual({
       id: "coop_01",
+      claim_code: CODE,
       name: "Chez Marc",
       total_hens: 10,
     });
@@ -102,15 +107,24 @@ describe("HomePage - l'accueil est le tableau de bord", () => {
     expect(FakeEventSource.instances.at(-1)?.url).toContain("/coops/coop_01/stream");
   });
 
-  it("affiche le refus de l'API quand l'identifiant est déjà pris", async () => {
-    setup([], { createStatus: 409 });
+  it("affiche le refus de l'API quand l'identifiant ou le code est faux", async () => {
+    setup([], { createStatus: 403 });
 
     await fillCoopForm("coop_01", "Chez Marc", "10");
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "L'identifiant 'coop_01' est déjà utilisé",
+      "Identifiant ou code d'appairage incorrect",
     );
     expect(FakeEventSource.instances).toHaveLength(0);
+  });
+
+  it("refuse un code d'appairage trop court sans appeler l'API", async () => {
+    const calls = setup([]);
+
+    await fillCoopForm("coop_01", "Chez Marc", "10", "K7QM-3XRA");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/fait 12 caractères/);
+    expect(calls.some((call) => call.method === "POST")).toBe(false);
   });
 
   it("refuse un identifiant invalide sans appeler l'API", async () => {

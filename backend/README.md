@@ -22,6 +22,7 @@ fichier SQLite local `smartnuggets.db`.
 ```bash
 alembic upgrade head      # crée / met à jour le schéma
 python -m app.seed        # compte demo@smartnuggets.be / poulailler + poulailler coop_01
+                          # + Pi coop_02 à ajouter avec le code DEMO-DEMO-0002
 ```
 
 Pour PostgreSQL, copier `.env.example` en `.env` et adapter `DATABASE_URL`.
@@ -51,6 +52,14 @@ uvicorn app.main:create_app --factory --reload
   Dans Swagger (`/docs`), le bouton **Authorize** fait la même chose.
 - Toutes les routes `/coops` exigent ce jeton et ne donnent accès qu'aux poulaillers de
   l'utilisateur connecté (ceux d'un autre éleveur répondent `404`).
+- Pour ajouter un poulailler à son compte, il faut l'identifiant du Pi **et** son code
+  d'appairage (étiquette du boîtier). Le code ne marche qu'une fois et n'est gardé que sous
+  forme de hash, comme un mot de passe. Si l'identifiant n'existe pas, si le code est faux ou
+  si le poulailler est déjà sur un compte, la réponse est la même (`403`) : on ne peut pas
+  deviner quels identifiants existent.
+- Un nouveau Pi s'enregistre avec `python -m app.new_coop coop_02`, qui affiche son code
+  (sur le VPS : `scripts/new-coop.sh`, qui crée aussi le compte MQTT). Code perdu avant
+  d'avoir servi : `python -m app.new_coop coop_02 --new-code`.
 - `/stream` et `/image` acceptent aussi `?token=<jeton>`, parce qu'`EventSource` et `<img>`
   ne peuvent pas envoyer d'en-tête.
 - En production, `JWT_SECRET_KEY` doit être définie. Sans elle, une clé temporaire est générée
@@ -65,7 +74,7 @@ uvicorn app.main:create_app --factory --reload
 | POST | `/auth/login` | Se connecter, renvoie un jeton (public) |
 | GET | `/auth/me` | Profil de l'utilisateur connecté |
 | GET | `/coops` | Poulaillers de l'utilisateur connecté |
-| POST | `/coops` | Ajouter un poulailler (`id` = compte MQTT du Raspberry Pi) |
+| POST | `/coops` | Ajouter un poulailler à son compte : `id` du Raspberry Pi + `claim_code` (code d'appairage) |
 | GET | `/coops/{coop_id}/status` | État actuel : porte, compteurs, batterie, dernière communication |
 | GET | `/coops/{coop_id}/events?type=&limit=&offset=` | Historique paginé des passages et événements |
 | GET | `/coops/{coop_id}/alerts?acknowledged=&limit=&offset=` | Alertes, de la plus récente à la plus ancienne |
@@ -112,10 +121,11 @@ app/
 ├── main.py          # create_app() : assemblage de l'application
 ├── config.py        # variables d'environnement (pydantic-settings)
 ├── db.py            # moteur SQLAlchemy async
-├── models.py        # tables : users, coops, events, alerts
+├── models.py        # tables : users, devices, coops, events, alerts
+├── new_coop.py      # python -m app.new_coop : enregistrer un nouveau Raspberry Pi
 ├── mqtt/            # topics, format des messages, client MQTT
 ├── schemas.py       # entrées / sorties de l'API (Pydantic)
-├── security.py      # hachage Argon2id, jetons JWT
+├── security.py      # hachage Argon2id, codes d'appairage, jetons JWT
 ├── routers/         # routes HTTP
 ├── services/        # logique métier
 └── repositories/    # requêtes SQL (via l'ORM, jamais de SQL concaténé)

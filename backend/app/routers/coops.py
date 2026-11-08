@@ -42,8 +42,12 @@ async def list_coops(service: CoopServiceDep) -> list[CoopRead]:
     "",
     response_model=CoopRead,
     status_code=status.HTTP_201_CREATED,
-    summary="Ajouter un poulailler",
-    responses={409: {"description": "Identifiant déjà utilisé"}},
+    summary="Ajouter un poulailler à son compte",
+    description=(
+        "Il faut l'identifiant du Raspberry Pi **et** son code d'appairage (étiquette du "
+        "boîtier). Le code ne marche qu'une fois."
+    ),
+    responses={403: {"description": "Identifiant ou code d'appairage incorrect"}},
 )
 async def create_coop(data: CoopCreate, service: CoopServiceDep) -> CoopRead:
     coop = await service.create_coop(data)

@@ -6,6 +6,8 @@ import { FormError, FormField, SubmitButton } from "../components/FormField";
 
 /** Même règle que l'API (CoopCreate.id) : c'est aussi le nom du compte MQTT du Raspberry Pi. */
 const COOP_ID = /^[A-Za-z0-9_-]{1,64}$/;
+/** Code d'appairage : 12 caractères, les tirets et les espaces sont ignorés. */
+const CLAIM_CODE_LENGTH = 12;
 const MAX_HENS = 1000;
 
 /** Déclare un poulailler sur le compte de l'éleveur (`POST /coops`). */
@@ -19,6 +21,7 @@ export function AddCoopForm({
 }) {
   const { token, logout } = useAuth();
   const [id, setId] = useState("");
+  const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [hens, setHens] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -27,10 +30,17 @@ export function AddCoopForm({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const coopId = id.trim();
+    const claimCode = code.trim();
     const totalHens = Number(hens);
     if (!COOP_ID.test(coopId)) {
       setError(
         "L'identifiant ne peut contenir que des lettres sans accent, des chiffres, _ et - (64 caractères au maximum).",
+      );
+      return;
+    }
+    if (claimCode.replace(/[\s-]/g, "").length !== CLAIM_CODE_LENGTH) {
+      setError(
+        `Le code d'appairage fait ${String(CLAIM_CODE_LENGTH)} caractères, par exemple K7QM-3XRA-PZ8D.`,
       );
       return;
     }
@@ -46,6 +56,7 @@ export function AddCoopForm({
     try {
       const coop = await api.createCoop(token, {
         id: coopId,
+        claim_code: claimCode,
         name: name.trim(),
         total_hens: totalHens,
       });
@@ -69,8 +80,8 @@ export function AddCoopForm({
         Ajouter un poulailler
       </h2>
       <p className="mb-4 text-sm text-stone-600">
-        L'identifiant est celui du compte MQTT de votre Raspberry Pi (par exemple{" "}
-        <code>coop_01</code>) : c'est lui qui relie le poulailler à votre compte.
+        L'identifiant (par exemple <code>coop_01</code>) et le code d'appairage sont sur l'étiquette
+        du boîtier de votre poulailler. Le code ne marche qu'une fois.
       </p>
       <form
         onSubmit={(event) => {
@@ -88,6 +99,19 @@ export function AddCoopForm({
           value={id}
           onChange={(event) => {
             setId(event.target.value);
+          }}
+        />
+        <FormField
+          id="coop-code"
+          label="Code d'appairage"
+          required
+          maxLength={20}
+          autoComplete="off"
+          spellCheck={false}
+          placeholder="XXXX-XXXX-XXXX"
+          value={code}
+          onChange={(event) => {
+            setCode(event.target.value);
           }}
         />
         <FormField

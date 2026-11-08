@@ -39,6 +39,12 @@ class CoopCreate(BaseModel):
         description="Identifiant du poulailler, identique au compte MQTT du Raspberry Pi",
         examples=["coop_01"],
     )
+    claim_code: str = Field(
+        min_length=12,
+        max_length=20,
+        description="Code d'appairage du Raspberry Pi (sur l'étiquette du boîtier)",
+        examples=["K7QM-3XRA-PZ8D"],
+    )
     name: str = Field(min_length=1, max_length=100)
     total_hens: int = Field(default=0, ge=0, le=1000)
     auto_close_time: time | None = None

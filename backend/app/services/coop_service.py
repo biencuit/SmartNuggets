@@ -4,16 +4,19 @@ import uuid
 from collections.abc import Sequence
 from datetime import datetime, timedelta
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.errors import ConflictError, NotFoundError
+from app.errors import ForbiddenError, NotFoundError
 from app.models import Alert, Coop, Event
-from app.repositories import AlertRepository, CoopRepository, EventRepository
+from app.repositories import AlertRepository, CoopRepository, DeviceRepository, EventRepository
 from app.schemas import CommandRequest, CoopCreate, CoopStatus
+from app.security import normalize_claim_code, verify_password
 from app.services.commands import CommandPublisher, DoorCommand
 from app.timeutils import ensure_utc, utcnow
 
 DEFAULT_OFFLINE_AFTER_S = 900
+CLAIM_REFUSED = "Identifiant ou code d'appairage incorrect"
 
 
 class CoopService:
@@ -31,6 +34,7 @@ class CoopService:
         self.owner_id = owner_id
         self.offline_after_s = offline_after_s
         self.coops = CoopRepository(session)
+        self.devices = DeviceRepository(session)
         self.events = EventRepository(session)
         self.alerts = AlertRepository(session)
 
@@ -38,10 +42,30 @@ class CoopService:
         return await self.coops.list(owner_id=self.owner_id)
 
     async def create_coop(self, data: CoopCreate) -> Coop:
-        if await self.coops.get(data.id) is not None:
-            raise ConflictError(f"L'identifiant {data.id!r} est déjà utilisé")
-        coop = await self.coops.add(Coop(owner_id=self.owner_id, **data.model_dump()))
-        await self.session.commit()
+        """Ajoute le poulailler au compte, seulement avec le bon code d'appairage du Pi.
+
+        Le code ne marche qu'une fois. La réponse est la même si l'identifiant n'existe pas,
+        si le code est faux ou si le poulailler a déjà un propriétaire : on ne peut pas
+        deviner quels identifiants existent.
+        """
+        device = await self.devices.get(data.id, for_update=True)
+        code_hash = None
+        if device is not None and device.claimed_at is None:
+            code_hash = device.claim_code_hash
+        # verify_password calcule toujours un hash (même sans code enregistré) : la réponse
+        # prend le même temps dans tous les cas.
+        valid = verify_password(code_hash, normalize_claim_code(data.claim_code))
+        if device is None or not valid:
+            raise ForbiddenError(CLAIM_REFUSED)
+        device.claimed_at = utcnow()
+        device.claim_code_hash = None
+        coop = Coop(owner_id=self.owner_id, **data.model_dump(exclude={"claim_code"}))
+        try:
+            await self.coops.add(coop)
+            await self.session.commit()
+        except IntegrityError as exc:
+            await self.session.rollback()
+            raise ForbiddenError(CLAIM_REFUSED) from exc
         return coop
 
     async def get_coop(self, coop_id: str) -> Coop:
