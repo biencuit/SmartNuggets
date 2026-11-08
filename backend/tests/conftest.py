@@ -16,8 +16,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import Settings
 from app.db import Base
 from app.main import create_app
-from app.models import Coop, DoorState, User
+from app.models import Coop, Device, DoorState, User
 from app.security import create_access_token, hash_password
+from app.timeutils import utcnow
 
 TEST_SECRET = "test-secret-" + "x" * 52
 OWNER_PASSWORD = "mot-de-passe-de-marc"
@@ -77,6 +78,9 @@ async def owner(session: AsyncSession) -> User:
 
 @pytest.fixture
 async def coop(session: AsyncSession, owner: User) -> Coop:
+    # Un poulailler n'existe que pour un Raspberry Pi enregistré (table devices).
+    session.add(Device(id="coop_01", claimed_at=utcnow()))
+    await session.flush()
     coop = Coop(
         id="coop_01",
         owner_id=owner.id,

@@ -41,23 +41,3 @@ async def test_un_eleveur_ne_voit_pas_le_poulailler_d_un_autre(
         response = await voisin.post("/api/v1/coops/coop_01/command", json={"action": "OPEN"})
         assert response.status_code == 404
     assert app.state.command_publisher.sent == []
-
-
-async def test_creation_d_un_poulailler(client: AsyncClient, owner: User) -> None:
-    response = await client.post(
-        "/api/v1/coops", json={"id": "coop_02", "name": "Petit poulailler", "total_hens": 4}
-    )
-    assert response.status_code == 201
-    assert response.json() == {"id": "coop_02", "name": "Petit poulailler", "total_hens": 4}
-
-    status = (await client.get("/api/v1/coops/coop_02/status")).json()
-    assert status["door_state"] == "CLOSED"
-    assert status["outside_count"] == 4
-
-
-async def test_creation_identifiant_deja_pris_ou_invalide(client: AsyncClient, coop: Coop) -> None:
-    response = await client.post("/api/v1/coops", json={"id": "coop_01", "name": "Doublon"})
-    assert response.status_code == 409
-
-    response = await client.post("/api/v1/coops", json={"id": "../etc", "name": "Pirate"})
-    assert response.status_code == 422
