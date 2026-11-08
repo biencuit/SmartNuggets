@@ -25,6 +25,8 @@ OFFLINE_AFTER_S="${DEVICE_OFFLINE_AFTER_S:-60}"
 COOP_ID="coop_01"
 DEMO_EMAIL="demo@smartnuggets.be"
 DEMO_PASSWORD="poulailler" # compte de démo créé par app.seed, local uniquement
+DEMO_FREE_COOP="coop_02"   # Pi de démo pas encore sur un compte (app.seed)
+DEMO_CLAIM_CODE="DEMO-DEMO-0002"
 API_URL="http://127.0.0.1:$API_PORT/api/v1"
 
 WITH_PI=1
@@ -319,6 +321,7 @@ menu() {
 
 ${BOLD}SmartNuggets tourne en local${RESET_COLOR}
   Application : http://localhost:$WEB_PORT   (compte $DEMO_EMAIL / $DEMO_PASSWORD)
+  Poulailler à ajouter : $DEMO_FREE_COOP, code d'appairage $DEMO_CLAIM_CODE
   API (Swagger) : http://localhost:$API_PORT/docs
   Broker MQTT : localhost:$MQTT_PORT (sans mot de passe)
 
