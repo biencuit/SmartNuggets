@@ -121,6 +121,7 @@ class IngestionService:
                 coop_id=coop.id,
                 alert_type=AlertType.MISSING_HEN,
                 severity=Severity.WARNING,
+                missing_count=coop.total_hens - coop.inside_count,
                 created_at=utcnow(),
             )
         )

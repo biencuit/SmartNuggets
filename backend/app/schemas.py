@@ -95,6 +95,7 @@ class AlertRead(ORMModel):
     severity: Severity
     ai_confidence: float | None
     image_url: str | None
+    missing_count: int | None = None
     acknowledged: bool
     created_at: UtcDatetime
 

@@ -82,9 +82,11 @@ async def test_alerte_si_des_poules_sont_dehors_a_la_fermeture(
     [alerte] = await alertes(session)
     assert alerte.alert_type == "MISSING_HEN"
     assert alerte.severity == "WARNING"
+    assert alerte.missing_count == 2
     # L'application reçoit l'état (2 dehors), l'événement, puis l'alerte en direct.
     assert [m["event"] for m in messages] == ["status", "event", "alert"]
     assert messages[0]["data"]["outside_count"] == 2
+    assert messages[2]["data"]["missing_count"] == 2
 
 
 async def test_pas_d_alerte_si_toutes_les_poules_sont_rentrees(
