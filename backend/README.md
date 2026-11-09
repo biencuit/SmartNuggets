@@ -91,7 +91,8 @@ Mosquitto du VPS (topics et sécurité : voir `mosquitto/README.md`). Avec `MQTT
 l'API lance au démarrage un client MQTT (`app/mqtt/worker.py`) qui :
 
 - écoute `smartnuggets/+/telemetry`, `alerts` et `status`, met la base à jour
-  (et crée une alerte `MISSING_HEN` si la porte se ferme alors que des poules sont dehors)
+  (et crée une alerte `MISSING_HEN`, avec le nombre de poules dehors dans `missing_count`,
+  si la porte se ferme le soir alors que des poules sont dehors)
   (`app/services/ingestion.py`) et pousse chaque changement sur le flux SSE ;
 - publie les commandes manuelles sur `smartnuggets/{coop_id}/commands` (QoS 1) ;
   si le broker est injoignable, `POST /command` répond `503` ;
