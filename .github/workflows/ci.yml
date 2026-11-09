@@ -47,7 +47,7 @@ jobs:
         run: |
           ruff check .
           black --check .
-          bandit -q -r mqtt_uplink hardware
+          bandit -q -r mqtt_uplink hardware ai_detector
       - name: Vulnérabilités connues des dépendances (pip-audit)
         run: pip-audit --skip-editable
 
