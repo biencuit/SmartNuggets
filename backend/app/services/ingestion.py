@@ -8,7 +8,7 @@ from pathlib import Path
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Alert, AlertType, Coop, Event, EventType, Severity
+from app.models import Alert, AlertType, Coop, Event, EventType, Severity, TriggerSource
 from app.mqtt.messages import AlertMessage, TelemetryMessage
 from app.repositories import AlertRepository, CoopRepository, EventRepository
 from app.schemas import AlertRead, EventRead
@@ -89,7 +89,11 @@ class IngestionService:
                 )
             )
         missing_hen_alert = None
-        if event is not None and event.event_type == EventType.DOOR_CLOSE:
+        if (
+            event is not None
+            and event.event_type == EventType.DOOR_CLOSE
+            and event.trigger_source == TriggerSource.SCHEDULE
+        ):
             missing_hen_alert = await self._check_missing_hens(coop)
         await self.session.commit()
 
@@ -104,8 +108,10 @@ class IngestionService:
             self._publish_alert(missing_hen_alert)
 
     async def _check_missing_hens(self, coop: Coop) -> Alert | None:
-        """US-COMPT-4 : la porte vient de se fermer, toutes les poules sont-elles rentrées ?
+        """US-COMPT-4 : porte fermée pour la nuit, toutes les poules sont-elles rentrées ?
 
+        Seulement pour la fermeture du soir (SCHEDULE) : en journée, la porte se ferme aussi
+        après le passage d'une poule ou devant un prédateur, et les poules dehors sont normales.
         Pas d'alerte si le total n'est pas réglé (0) ou si le compte est bon.
         """
         if coop.total_hens <= 0 or coop.inside_count >= coop.total_hens:

@@ -51,13 +51,15 @@ async def test_impossible_de_regler_le_poulailler_d_un_autre(
 # ---------------------------------------------------------------- US-COMPT-4 : l'alerte
 
 
-async def porte_fermee(app: FastAPI, inside: int, event_type: str = "DOOR_CLOSE") -> list:
+async def porte_fermee(
+    app: FastAPI, inside: int, event_type: str = "DOOR_CLOSE", source: str = "SCHEDULE"
+) -> list:
     """Simule le Raspberry Pi qui annonce une fermeture de porte avec `inside` poules."""
     payload = {
         "sent_at": SENT_AT,
         "door_state": "CLOSED",
         "inside_count": inside,
-        "event": {"event_type": event_type, "trigger_source": "SCHEDULE", "occurred_at": SENT_AT},
+        "event": {"event_type": event_type, "trigger_source": source, "occurred_at": SENT_AT},
     }
     broadcaster: Broadcaster = app.state.broadcaster
     async with broadcaster.subscribe("coop_01") as queue:
@@ -106,4 +108,14 @@ async def test_pas_d_alerte_pour_une_ouverture_ou_un_passage(
 ) -> None:
     await porte_fermee(app, inside=3, event_type="DOOR_OPEN")
     await porte_fermee(app, inside=3, event_type="HEN_EXIT")
+    assert await alertes(session) == []
+
+
+async def test_pas_d_alerte_pour_une_fermeture_en_journee(
+    app: FastAPI, session: AsyncSession, coop: Coop
+) -> None:
+    # En journée, des poules dehors sont normales : la porte se referme après un passage
+    # (caméra) ou devant un prédateur (sécurité), ou l'éleveur la ferme depuis l'application.
+    for source in ("AI_AUTO", "FAILSAFE", "MANUAL_APP"):
+        await porte_fermee(app, inside=6, source=source)
     assert await alertes(session) == []
