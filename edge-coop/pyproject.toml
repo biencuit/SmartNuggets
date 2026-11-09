@@ -8,6 +8,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Sur le Raspberry Pi 5 (Picamera2 s'installe avec apt : sudo apt install python3-picamera2).
+pi = [
+    "gpiozero>=2.0",
+    "lgpio>=0.2",
+]
+# Rejouer une vidéo enregistrée à la place de la caméra.
+video = [
+    "opencv-python-headless>=4.10",
+]
 dev = [
     "pytest>=8.3",
     "pytest-cov>=5.0",
@@ -21,7 +30,7 @@ requires = ["setuptools>=69"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["mqtt_uplink*"]
+include = ["mqtt_uplink*", "hardware*"]
 
 [tool.black]
 line-length = 100
@@ -35,11 +44,16 @@ target-version = "py311"
 select = ["E", "F", "W", "I", "B", "UP", "SIM"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["mqtt_uplink"]
+known-first-party = ["mqtt_uplink", "hardware"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
 [tool.coverage.run]
-source = ["mqtt_uplink"]
-omit = ["mqtt_uplink/__main__.py"]
+source = ["mqtt_uplink", "hardware"]
+omit = [
+    "mqtt_uplink/__main__.py",
+    # matériel réel : testé sur le Raspberry Pi (wiki, page 9 D)
+    "hardware/gpio.py",
+    "hardware/camera.py",
+]
