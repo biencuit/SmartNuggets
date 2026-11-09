@@ -36,10 +36,11 @@ Capteur de présence -> Caméra -> Unité de traitement (détection)
 |---|---|
 | `backend/` | API FastAPI + PostgreSQL (voir `backend/README.md`) |
 | `frontend/` | Application web React (voir `frontend/README.md`) |
-| `edge-coop/` | Code du Raspberry Pi du poulailler : liaison MQTT avec le serveur |
+| `edge-coop/` | Code du Raspberry Pi du poulailler : liaison MQTT avec le serveur, prototype de la porte (`prototypes/`) |
 | `mosquitto/` | Configuration du broker MQTT (TLS, comptes, droits) |
-| `Python-RP5/` | Commande du moteur de la porte |
-| `scripts/` | Outils de développement (`dev.sh` : tout lancer en local) |
+| `nginx/` | Image du serveur web (site React + reverse proxy de l'API) |
+| `docs/` | Présentation, maquette et images |
+| `scripts/` | Outils de développement et de déploiement (`dev.sh` : tout lancer en local) |
 
 ## Lancer le projet en local
 

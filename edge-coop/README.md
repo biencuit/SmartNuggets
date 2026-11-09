@@ -49,3 +49,15 @@ pip install -e ".[dev]"
 pytest --cov
 ruff check . && black --check . && bandit -r mqtt_uplink
 ```
+
+## Prototype de la porte
+
+`prototypes/porte.py` (Diego, PR #32) : premier essai de commande de la porte au clavier
+(`m` monter, `d` descendre, `s` stop), avec deux LED à la place du moteur. Il utilise
+`gpiozero.Motor`, prévu pour un moteur à courant continu sur deux broches. Le moteur réel
+(28BYJ-48 + ULN2003) est un moteur pas-à-pas sur quatre broches : ce prototype sert de
+référence, il n'est pas utilisé par le reste du code.
+
+```bash
+python prototypes/porte.py   # sur le Raspberry Pi, avec gpiozero installé
+```
