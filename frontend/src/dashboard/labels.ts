@@ -41,6 +41,17 @@ export const ALERT_ADVICE: Record<AlertType, string> = {
   DEVICE_OFFLINE: "Le Raspberry Pi ne donne plus de nouvelles. Vérifiez le câble et le courant.",
 };
 
+/** Texte d'explication d'une alerte ; donne le nombre de poules dehors quand on le connaît. */
+export function alertAdvice(alert: Pick<CoopAlert, "alert_type" | "missing_count">): string {
+  const missing = alert.missing_count;
+  if (alert.alert_type === "MISSING_HEN" && missing != null && missing > 0) {
+    return missing === 1
+      ? "1 poule est encore dehors à l'heure de fermeture."
+      : `${String(missing)} poules sont encore dehors à l'heure de fermeture.`;
+  }
+  return ALERT_ADVICE[alert.alert_type];
+}
+
 /** Un prédateur signalé récemment et pas encore lu rend l'ouverture manuelle risquée. */
 export const PREDATOR_WINDOW_MS = 30 * 60_000;
 

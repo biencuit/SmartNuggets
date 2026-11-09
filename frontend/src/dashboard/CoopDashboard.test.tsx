@@ -146,6 +146,17 @@ describe("CoopDashboard - tableau de bord du poulailler, sur l'accueil", () => {
     expect(calls.some((call) => call.url === `${BASE}/command`)).toBe(true);
   });
 
+  it("affiche le nombre de poules encore dehors dans l'alerte du soir", async () => {
+    setup({
+      alerts: [makeAlert({ alert_type: "MISSING_HEN", severity: "WARNING", missing_count: 2 })],
+    });
+
+    expect(await screen.findByText("Poule pas rentrée")).toBeInTheDocument();
+    expect(
+      screen.getByText("2 poules sont encore dehors à l'heure de fermeture."),
+    ).toBeInTheDocument();
+  });
+
   it("corrige le compteur de poules (CALIBRATE)", async () => {
     const calls = setup({ status: { total_hens: 10, inside_count: 8 } });
     const user = userEvent.setup();

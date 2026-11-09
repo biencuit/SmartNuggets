@@ -79,6 +79,8 @@ export interface CoopAlert {
   severity: Severity;
   ai_confidence: number | null;
   image_url: string | null;
+  /** MISSING_HEN : nombre de poules encore dehors à la fermeture du soir. */
+  missing_count?: number | null;
   acknowledged: boolean;
   /** ISO 8601, UTC. */
   created_at: string;
