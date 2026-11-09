@@ -21,13 +21,14 @@ Commandes :
   q = quitter   (tout est coupé automatiquement)
 """
 
-from gpiozero import Motor
 from threading import Timer
+
+from gpiozero import Motor
 
 PIN_MONTER = 17
 PIN_DESCENDRE = 27
 DUREE_MAX_S = 10  # sécurité : arrêt automatique après ce délai
-                  # (à remplacer plus tard par des fins de course)
+# (à remplacer plus tard par des fins de course)
 
 moteur = Motor(forward=PIN_MONTER, backward=PIN_DESCENDRE)
 minuteur = None
