@@ -50,6 +50,36 @@ pytest --cov
 ruff check . && black --check . && bandit -r mqtt_uplink
 ```
 
+## Couche matérielle (`hardware/`)
+
+Le reste du code ne parle jamais directement aux GPIO : il passe par des interfaces
+(`hardware/interfaces.py`) qui existent en deux versions.
+
+| Interface | Raspberry Pi 5 | Simulateur (PC, tests) |
+|---|---|---|
+| `StepperMotor` : moteur de la porte | `gpio.stepper()` : 28BYJ-48 + ULN2003 (`HalfStepper`) | `mock.FakeStepper` |
+| `Switch` : fins de course, barrières IR | `gpio.GpioSwitch` | `mock.FakeSwitch`, `mock.LimitSwitch` |
+| `Switch` : capteur de présence PIR | `gpio.GpioMotionSensor` | `mock.FakeSwitch` |
+| `Camera` | `camera.PiCamera` (Picamera2) | `camera.VideoCamera` (vidéo), `camera.FolderCamera`, `mock.FakeCamera` |
+
+**Moteur 28BYJ-48.** Séquence de 8 demi-pas sur IN1 à IN4 de l'ULN2003, 4096 demi-pas par
+tour de l'axe, au moins 1 ms entre deux pas (1,5 ms par défaut). Le moteur est alimenté en
+5 V à part (pas par le 5 V du Pi), masse commune avec le Pi. `release()` coupe les bobines
+à l'arrêt pour que le moteur ne chauffe pas.
+
+**Raspberry Pi 5.** `RPi.GPIO` ne fonctionne pas sur le Pi 5 : on utilise `gpiozero`
+(qui passe par `lgpio`). Installation : `pip install -e ".[pi]"` et
+`sudo apt install python3-picamera2` pour la caméra.
+
+Câblage par défaut (numéros BCM) :
+
+| Élément | GPIO |
+|---|---|
+| ULN2003 IN1, IN2, IN3, IN4 | 5, 6, 13, 19 |
+| Fin de course haut / bas | 23 / 24 |
+| Barrière IR extérieure / intérieure | 27 / 22 |
+| Capteur PIR | 17 |
+
 ## Prototype de la porte
 
 `prototypes/porte.py` (Diego, PR #32) : premier essai de commande de la porte au clavier
