@@ -8,7 +8,7 @@ from pathlib import Path
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Alert, AlertType, Coop, Event, Severity
+from app.models import Alert, AlertType, Coop, Event, EventType, Severity
 from app.mqtt.messages import AlertMessage, TelemetryMessage
 from app.repositories import AlertRepository, CoopRepository, EventRepository
 from app.schemas import AlertRead, EventRead
@@ -88,6 +88,9 @@ class IngestionService:
                     occurred_at=payload.occurred_at,
                 )
             )
+        missing_hen_alert = None
+        if event is not None and event.event_type == EventType.DOOR_CLOSE:
+            missing_hen_alert = await self._check_missing_hens(coop)
         await self.session.commit()
 
         self._publish_status(coop)
@@ -97,6 +100,24 @@ class IngestionService:
             )
         if low_battery_alert is not None:
             self._publish_alert(low_battery_alert)
+        if missing_hen_alert is not None:
+            self._publish_alert(missing_hen_alert)
+
+    async def _check_missing_hens(self, coop: Coop) -> Alert | None:
+        """US-COMPT-4 : la porte vient de se fermer, toutes les poules sont-elles rentrées ?
+
+        Pas d'alerte si le total n'est pas réglé (0) ou si le compte est bon.
+        """
+        if coop.total_hens <= 0 or coop.inside_count >= coop.total_hens:
+            return None
+        return await self.alerts.add(
+            Alert(
+                coop_id=coop.id,
+                alert_type=AlertType.MISSING_HEN,
+                severity=Severity.WARNING,
+                created_at=utcnow(),
+            )
+        )
 
     async def handle_alert(self, coop_id: str, message: AlertMessage) -> None:
         coop = await self._get_coop(coop_id)
