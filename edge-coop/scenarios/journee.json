@@ -1,0 +1,12 @@
+{
+  "description": "Une journée au poulailler en 2 minutes : sortie du matin, renard, retour, fermeture du soir avec une poule dehors.",
+  "steps": [
+    {"at": 5, "do": "hen", "confidence": 0.93, "say": "Matin : une poule se présente devant la porte, la caméra la reconnaît, la porte s'ouvre"},
+    {"at": 12, "do": "exit", "count": 4, "say": "Quatre poules sortent : le compteur descend"},
+    {"at": 25, "do": "predator", "name": "renard", "confidence": 0.87, "say": "Un renard approche : la porte se ferme, alerte avec photo"},
+    {"at": 35, "do": "hen", "confidence": 0.95, "say": "Une poule veut rentrer, mais la porte reste verrouillée tant que le renard a été vu récemment"},
+    {"at": 60, "do": "hen", "confidence": 0.91, "say": "Le verrou est levé : la poule est reconnue, la porte s'ouvre"},
+    {"at": 66, "do": "enter", "count": 3, "say": "Trois poules rentrent"},
+    {"at": 90, "do": "evening", "say": "Le soir arrive : la porte se ferme alors qu'une poule est encore dehors"}
+  ]
+}

@@ -42,9 +42,15 @@ class CoopApp:
             self.controller.on_command(command.action, command.inside_count)
         self.controller.poll()
 
-    def run(self, until: Callable[[], bool] | None = None) -> None:
+    def run(
+        self,
+        until: Callable[[], bool] | None = None,
+        before_step: Callable[[], None] | None = None,
+    ) -> None:
         self.controller.start()
         while not self._stop.is_set() and not (until and until()):
+            if before_step:
+                before_step()  # mode démo : le scénario pilote les simulateurs
             self.step()
             self._sleep(self.poll_s)
 
