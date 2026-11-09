@@ -95,6 +95,14 @@ export function CoopDashboard({ coopId, name }: { coopId: string; name: string }
     [token, coopId],
   );
 
+  const setTotalHens = useCallback(
+    async (total: number) => {
+      if (!token) return;
+      await api.updateCoop(token, coopId, { total_hens: total });
+    },
+    [token, coopId],
+  );
+
   const acknowledge = useCallback(
     async (alertId: number) => {
       if (!token) return;
@@ -136,6 +144,7 @@ export function CoopDashboard({ coopId, name }: { coopId: string; name: string }
             <HenCountCard
               status={status}
               onCalibrate={(count) => sendCommand("CALIBRATE", count)}
+              onSetTotal={setTotalHens}
             />
           </div>
           <SystemStatusCard status={status} now={now} live={live} />

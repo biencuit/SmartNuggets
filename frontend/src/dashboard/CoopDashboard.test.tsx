@@ -61,6 +61,9 @@ function setup(
         ? { status: options.commandStatus, body: { detail: "Le poulailler est injoignable" } }
         : { status: 202, body: { command_id: "c1", coop_id: "coop_01", action: "OPEN" } },
     [`POST ${BASE}/alerts/7/ack`]: () => ({ body: makeAlert({ acknowledged: true }) }),
+    [`PATCH ${BASE}`]: (call) => ({
+      body: { id: "coop_01", name: "Chez Marc", ...(JSON.parse(call.body ?? "{}") as object) },
+    }),
   });
   renderApp("/");
   return calls;
@@ -158,6 +161,40 @@ describe("CoopDashboard - tableau de bord du poulailler, sur l'accueil", () => {
     const command = calls.find((call) => call.url === `${BASE}/command`);
     expect(JSON.parse(command?.body ?? "{}")).toEqual({ action: "CALIBRATE", inside_count: 10 });
     expect(screen.getByText("Correction envoyée au poulailler.")).toBeInTheDocument();
+  });
+
+  it("règle le nombre total de poules (US-COMPT-3)", async () => {
+    const calls = setup({ status: { total_hens: 10, inside_count: 8 } });
+    const user = userEvent.setup();
+
+    await user.click(
+      await screen.findByRole("button", { name: "Modifier le nombre total de poules" }),
+    );
+    const input = screen.getByLabelText("Nombre total de poules");
+    await user.clear(input);
+    await user.type(input, "12");
+    await user.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    const patch = calls.find((call) => call.method === "PATCH");
+    expect(patch?.url).toBe(BASE);
+    expect(JSON.parse(patch?.body ?? "{}")).toEqual({ total_hens: 12 });
+    expect(await screen.findByText("C'est noté : 12 poules au total.")).toBeInTheDocument();
+  });
+
+  it("refuse un nombre total de poules invalide sans appeler l'API", async () => {
+    const calls = setup();
+    const user = userEvent.setup();
+
+    await user.click(
+      await screen.findByRole("button", { name: "Modifier le nombre total de poules" }),
+    );
+    const input = screen.getByLabelText("Nombre total de poules");
+    await user.clear(input);
+    await user.type(input, "2000");
+    await user.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    expect(screen.getByText("Entrez un nombre entier entre 0 et 1000.")).toBeInTheDocument();
+    expect(calls.some((call) => call.method === "PATCH")).toBe(false);
   });
 
   it("marque une alerte comme lue", async () => {

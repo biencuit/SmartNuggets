@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 
 import type { CoopStatus } from "../api/client";
+import { TotalHensForm } from "./TotalHensForm";
 
 function Hens({ count, outside }: { count: number; outside?: boolean }) {
   return (
@@ -20,9 +21,11 @@ function Hens({ count, outside }: { count: number; outside?: boolean }) {
 export function HenCountCard({
   status,
   onCalibrate,
+  onSetTotal,
 }: {
   status: CoopStatus;
   onCalibrate: (insideCount: number) => Promise<void>;
+  onSetTotal: (total: number) => Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(String(status.inside_count));
@@ -133,6 +136,7 @@ export function HenCountCard({
           {error}
         </p>
       )}
+      <TotalHensForm total={status.total_hens} onSave={onSetTotal} />
     </section>
   );
 }
