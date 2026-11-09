@@ -75,6 +75,7 @@ uvicorn app.main:create_app --factory --reload
 | GET | `/auth/me` | Profil de l'utilisateur connecté |
 | GET | `/coops` | Poulaillers de l'utilisateur connecté |
 | POST | `/coops` | Ajouter un poulailler à son compte : `id` du Raspberry Pi + `claim_code` (code d'appairage) |
+| PATCH | `/coops/{coop_id}` | Régler le nombre total de poules (`total_hens`, de 0 à 1000) |
 | GET | `/coops/{coop_id}/status` | État actuel : porte, compteurs, batterie, dernière communication |
 | GET | `/coops/{coop_id}/events?type=&limit=&offset=` | Historique paginé des passages et événements |
 | GET | `/coops/{coop_id}/alerts?acknowledged=&limit=&offset=` | Alertes, de la plus récente à la plus ancienne |
@@ -90,6 +91,7 @@ Mosquitto du VPS (topics et sécurité : voir `mosquitto/README.md`). Avec `MQTT
 l'API lance au démarrage un client MQTT (`app/mqtt/worker.py`) qui :
 
 - écoute `smartnuggets/+/telemetry`, `alerts` et `status`, met la base à jour
+  (et crée une alerte `MISSING_HEN` si la porte se ferme alors que des poules sont dehors)
   (`app/services/ingestion.py`) et pousse chaque changement sur le flux SSE ;
 - publie les commandes manuelles sur `smartnuggets/{coop_id}/commands` (QoS 1) ;
   si le broker est injoignable, `POST /command` répond `503` ;
