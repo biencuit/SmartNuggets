@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>SmartNuggets</title>
+<style>
+  @page { size: 1280px 720px; margin: 0; }
+  :root { --green: #2e5e3b; --green-soft: #e8f0ea; --ink: #1f2a22; --muted: #66706a; --line: #d9e0db; --red: #b3412f; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Noto Sans", "DejaVu Sans", sans-serif; color: var(--ink); background: #fff; }
+  .slide { width: 1280px; height: 720px; padding: 72px 96px; position: relative; page-break-after: always; overflow: hidden; display: flex; flex-direction: column; }
+  .slide:last-child { page-break-after: auto; }
+  h1, h2 { font-family: "Noto Serif", "DejaVu Serif", serif; color: var(--green); }
+  h1 { font-size: 88px; line-height: 1; }
+  h2 { font-size: 48px; margin-bottom: 48px; }
+  .num { position: absolute; bottom: 32px; right: 48px; font-size: 18px; color: var(--muted); }
+  .lead { font-size: 34px; line-height: 1.35; }
+  .muted { color: var(--muted); }
+
+  /* 1. Titre */
+  .title { flex-direction: row; align-items: center; justify-content: space-between; }
+  .title .text { max-width: 640px; }
+  .title .lead { margin: 32px 0 56px; }
+  .title .meta { font-size: 22px; }
+  .badge { width: 340px; height: 340px; border-radius: 50%; background: var(--green); display: flex; align-items: center; justify-content: center; font-size: 170px; }
+
+  /* 2. Le projet */
+  .flow { display: flex; align-items: stretch; gap: 24px; margin-top: 24px; }
+  .step { flex: 1; background: var(--green-soft); border-radius: 20px; padding: 36px 28px; font-size: 28px; line-height: 1.3; text-align: center; display: flex; flex-direction: column; justify-content: center; gap: 12px; }
+  .step .ico { font-size: 56px; }
+  .arrow { align-self: center; font-size: 44px; color: var(--green); }
+  .outcomes { flex: 1.3; display: flex; flex-direction: column; gap: 16px; }
+  .outcomes .step { padding: 20px 24px; font-size: 26px; text-align: left; flex-direction: row; align-items: center; gap: 16px; }
+  .outcomes .step .ico { font-size: 40px; }
+  .outcomes .bad { background: #f6e6e2; }
+
+  /* 3. Maquette */
+  .mock { flex: 1; display: flex; justify-content: center; align-items: center; min-height: 0; }
+  .mock img { max-height: 100%; max-width: 100%; border-radius: 12px; }
+  .slide.full { padding: 48px 96px 56px; }
+  .slide.full h2 { margin-bottom: 24px; }
+
+  /* 4. Démo */
+  .demo { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; flex: 1; }
+  .keys { display: flex; flex-direction: column; gap: 22px; }
+  .key { display: flex; align-items: center; gap: 24px; font-size: 30px; }
+  .key kbd { font-family: "DejaVu Sans Mono", monospace; font-size: 30px; width: 64px; height: 64px; border-radius: 12px; border: 2px solid var(--green); color: var(--green); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .note { font-size: 24px; line-height: 1.45; }
+  .note p + p { margin-top: 20px; }
+  .pill { display: inline-block; background: var(--green); color: #fff; border-radius: 999px; padding: 8px 20px; font-size: 22px; margin-bottom: 24px; }
+
+  /* 5. Planning */
+  .plan { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; flex: 1; }
+  .col { border-radius: 18px; padding: 26px 24px; background: #f4f6f4; display: flex; flex-direction: column; }
+  .col.done { background: var(--green); color: #fff; }
+  .col.next { background: var(--green-soft); outline: 3px solid var(--green); }
+  .col h3 { font-size: 26px; margin-bottom: 4px; }
+  .col .count { font-size: 18px; opacity: .75; margin-bottom: 18px; }
+  .col ol { list-style: none; display: flex; flex-direction: column; gap: 12px; font-size: 19px; line-height: 1.3; }
+  .col li { display: flex; gap: 10px; }
+  .col li b { min-width: 30px; color: var(--green); }
+  .col.done li b { color: #fff; }
+  .plan.three { grid-template-columns: repeat(3, 1fr); }
+  .col ol.big { gap: 22px; font-size: 26px; margin-top: 16px; }
+  .col ol.big li { display: list-item; list-style: disc; margin-left: 28px; }
+  .demo-line { margin-top: 28px; font-size: 24px; display: flex; align-items: center; gap: 10px; }
+  .demo-line .pill { margin: 0 8px 0 0; }
+  .demo-line kbd { font-family: "DejaVu Sans Mono", monospace; border: 2px solid var(--green); color: var(--green); border-radius: 8px; padding: 2px 10px; }
+</style>
+</head>
+<body>
+
+<!-- 1 -->
+<section class="slide title">
+  <div class="text">
+    <h1>SmartNuggets</h1>
+    <p class="lead">La porte de poulailler qui reconnaît ses poules.</p>
+    <p class="meta muted">Projet d'intégration · EPHEC Bac 3<br>Démo d'avancement · 20 octobre 2026</p>
+  </div>
+  <div class="badge">🐔</div>
+</section>
+
+<!-- 2 -->
+<section class="slide">
+  <h2>Le projet en une slide</h2>
+  <div class="flow">
+    <div class="step"><span class="ico">📡</span>Le capteur détecte une présence</div>
+    <div class="arrow">→</div>
+    <div class="step"><span class="ico">📷</span>La caméra reconnaît qui est là</div>
+    <div class="arrow">→</div>
+    <div class="outcomes">
+      <div class="step"><span class="ico">🐔</span>Poule : la porte s'ouvre et le passage est compté</div>
+      <div class="step bad"><span class="ico">🦊</span>Prédateur : la porte reste fermée et on reçoit une alerte</div>
+    </div>
+  </div>
+  <span class="num">2</span>
+</section>
+
+<!-- 3 -->
+<section class="slide full">
+  <h2>Le système visé</h2>
+  <div class="mock"><img src="poulailler_connecte_maquette.png" alt="Maquette du poulailler connecté"></div>
+  <span class="num">3</span>
+</section>
+
+<!-- 4 -->
+<section class="slide">
+  <h2>Où on en est</h2>
+  <div class="demo">
+    <div class="col done">
+      <h3>✓ Fait</h3>
+      <ol class="big">
+        <li>Cadrage : matériel, architecture, organisation, risques</li>
+        <li>Structure en bois du poulailler</li>
+        <li>Code de commande de la porte, testé avec 2 LEDs sur le Raspberry Pi 5</li>
+      </ol>
+    </div>
+    <div class="col">
+      <h3>○ Pas encore</h3>
+      <ol class="big">
+        <li>Installer les composants : moteur, caméra, capteurs</li>
+        <li>MVP : porte qui s'ouvre pour une poule détectée</li>
+      </ol>
+    </div>
+  </div>
+  <p class="demo-line"><span class="pill">Démo</span> <kbd>m</kbd> monter · <kbd>d</kbd> descendre · <kbd>s</kbd> stop : une LED par sens du moteur</p>
+  <span class="num">4</span>
+</section>
+
+<!-- 5 -->
+<section class="slide">
+  <h2>La suite</h2>
+  <div class="plan three">
+    <div class="col next">
+      <h3>MVP</h3>
+      <div class="count">14 tâches · prochaine étape</div>
+      <ol>
+        <li><b>5</b>Motoriser la porte</li>
+        <li><b>6</b>Capteur de présence</li>
+        <li><b>7</b>Images d'entraînement</li>
+        <li><b>8</b>Modèle de détection</li>
+        <li><b>9</b>Reconnaître une poule</li>
+        <li><b>10</b>Ouverture automatique</li>
+      </ol>
+    </div>
+    <div class="col">
+      <h3>V1</h3>
+      <div class="count">9 tâches</div>
+      <ol>
+        <li><b>19</b>Détecter un prédateur</li>
+        <li><b>20</b>Porte bloquée si prédateur</li>
+        <li><b>21</b>Alerte avec photo</li>
+        <li><b>22</b>Fermeture le soir</li>
+      </ol>
+    </div>
+    <div class="col">
+      <h3>Bonus</h3>
+      <div class="count">4 tâches</div>
+      <ol>
+        <li><b>28</b>Dissuasion lumière / son</li>
+        <li><b>29</b>Coupure de courant</li>
+        <li><b>30</b>État du système</li>
+        <li><b>31</b>Identifier chaque poule</li>
+      </ol>
+    </div>
+  </div>
+  <span class="num">5</span>
+</section>
+
+</body>
+</html>

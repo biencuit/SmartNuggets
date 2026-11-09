@@ -6,6 +6,6 @@
 backend/
 edge-coop/
 mosquitto/
-Python-RP5/
+docs/
 scripts/
 .dev/
