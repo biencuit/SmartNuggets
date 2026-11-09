@@ -42,3 +42,6 @@ mosquitto/config/passwd
 
 # Certificats TLS du broker MQTT (générés sur le VPS)
 mosquitto/certs/
+
+# Présentations exportées
+*.pdf
