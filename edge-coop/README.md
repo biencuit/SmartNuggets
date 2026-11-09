@@ -111,6 +111,14 @@ HARDWARE=mock CAMERA=mock COOP_ID=coop_01 MQTT_HOST=127.0.0.1 MQTT_PORT=1883 MQT
   python -m coop_app       # sur un PC, avec le broker de scripts/dev.sh
 ```
 
+## Mode démo
+
+`python -m coop_app --demo scenarios/journee.json` (ou `bash scripts/dev.sh --demo` à la
+racine) : le scénario pilote les capteurs simulés et le détecteur simulé, le reste du
+programme est le vrai. Actions possibles : `hen`, `predator`, `exit`, `enter` (avec
+`count`), `evening` (avance l'horloge jusqu'à `CLOSE_AT`), `morning`. Le test
+`tests/test_demo.py` rejoue ce scénario en accéléré à chaque CI.
+
 ## Prototype de la porte
 
 `prototypes/porte.py` (Diego, PR #32) : premier essai de commande de la porte au clavier
