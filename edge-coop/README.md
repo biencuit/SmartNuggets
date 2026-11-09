@@ -89,6 +89,28 @@ catégorie (`hen`, `predator`, `other`), une confiance entre 0 et 1 et un nom li
 - Vrai modèle : écrire une classe avec `detect`, puis `DETECTOR=module:Classe` dans `.env`.
   Les poids du modèle (`*.pt`, `*.onnx`) et les jeux d'images (`datasets/`) restent hors de Git.
 
+## Programme du poulailler (`coop_app/`, `door_controller/`)
+
+`python -m coop_app` relie le matériel, la détection, la porte et le serveur. Règles, dans
+l'ordre de priorité :
+
+1. **Prédateur vu** : la porte se ferme si elle est ouverte et refuse de s'ouvrir pendant
+   `PREDATOR_LOCK_S` (même sur commande de l'application). Alerte avec photo.
+2. **Nuit** (hors de `OPEN_FROM`-`CLOSE_AT`) : la porte se ferme et ne s'ouvre plus seule.
+3. **Poule vue** (le PIR réveille la caméra) : la porte s'ouvre ; elle se referme quand
+   aucune poule n'est passée depuis `AUTO_CLOSE_AFTER_S`.
+4. **Commandes de l'application** : OPEN, CLOSE, CALIBRATE (correction du compteur).
+5. **Comptage** : deux barrières IR dans l'encadrement donnent le sens de passage.
+
+`door_controller/` ne dépend pas du matériel : `Door` (machine à états CLOSED, OPENING,
+OPEN, CLOSING, ERROR, fins de course, anti-pincement), `PassageCounter` (sens de passage)
+et `Schedule` (plage horaire). Au démarrage, la porte est recalée en bas.
+
+```bash
+HARDWARE=mock CAMERA=mock COOP_ID=coop_01 MQTT_HOST=127.0.0.1 MQTT_PORT=1883 MQTT_TLS=false \
+  python -m coop_app       # sur un PC, avec le broker de scripts/dev.sh
+```
+
 ## Prototype de la porte
 
 `prototypes/porte.py` (Diego, PR #32) : premier essai de commande de la porte au clavier
