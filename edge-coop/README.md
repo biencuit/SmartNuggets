@@ -80,6 +80,15 @@ Câblage par défaut (numéros BCM) :
 | Barrière IR extérieure / intérieure | 27 / 22 |
 | Capteur PIR | 17 |
 
+## Détection d'image (`ai_detector/`)
+
+Tout détecteur a une méthode `detect(frame) -> list[Detection]`, où une `Detection` est une
+catégorie (`hen`, `predator`, `other`), une confiance entre 0 et 1 et un nom libre.
+
+- `ScriptedDetector` : renvoie ce qu'on lui demande (tests, mode démo).
+- Vrai modèle : écrire une classe avec `detect`, puis `DETECTOR=module:Classe` dans `.env`.
+  Les poids du modèle (`*.pt`, `*.onnx`) et les jeux d'images (`datasets/`) restent hors de Git.
+
 ## Prototype de la porte
 
 `prototypes/porte.py` (Diego, PR #32) : premier essai de commande de la porte au clavier
