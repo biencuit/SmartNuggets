@@ -50,6 +50,12 @@ class CoopCreate(BaseModel):
     auto_close_time: time | None = None
 
 
+class CoopUpdate(BaseModel):
+    """Réglages du poulailler modifiables par l'éleveur (`PATCH /coops/{id}`)."""
+
+    total_hens: int = Field(ge=0, le=1000, description="Nombre total de poules du poulailler")
+
+
 class CoopRead(ORMModel):
     id: str
     name: str
