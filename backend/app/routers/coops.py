@@ -1,10 +1,11 @@
 """Routes des poulaillers : état, historique, alertes et commandes manuelles."""
 
 from collections.abc import AsyncIterator
+from datetime import datetime
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Query, Request, status
+from fastapi import APIRouter, HTTPException, Query, Request, status
 from fastapi.responses import FileResponse, StreamingResponse
 
 from app.deps import (
@@ -23,8 +24,11 @@ from app.schemas import (
     CoopRead,
     CoopStatus,
     EventRead,
+    HistoryCategory,
+    HistoryPage,
 )
 from app.services.sse import event_stream
+from app.timeutils import ensure_utc
 
 router = APIRouter(prefix="/api/v1/coops", tags=["poulaillers"])
 
@@ -73,6 +77,39 @@ async def list_events(
 ) -> list[EventRead]:
     events = await service.list_events(coop_id, event_type=event_type, limit=limit, offset=offset)
     return [EventRead.model_validate(event) for event in events]
+
+
+@router.get(
+    "/{coop_id}/history",
+    response_model=HistoryPage,
+    summary="Historique complet : passages, porte et alertes",
+    description=(
+        "Événements et alertes dans une seule liste, du plus récent au plus ancien. "
+        "`category` peut être répété (`?category=entries&category=alerts`) ; sans catégorie, "
+        "tout est renvoyé. `since` est inclus, `until` est exclu (dates ISO 8601, UTC si "
+        "aucun fuseau n'est indiqué). `total` compte tous les résultats, pas seulement la page."
+    ),
+    responses={422: {"description": "Catégorie inconnue, dates incohérentes ou limite invalide"}},
+)
+async def get_history(
+    coop_id: str,
+    service: CoopServiceDep,
+    category: Annotated[
+        list[HistoryCategory] | None, Query(description="entries, exits, door ou alerts")
+    ] = None,
+    since: Annotated[datetime | None, Query(description="Début de la période (inclus)")] = None,
+    until: Annotated[datetime | None, Query(description="Fin de la période (exclue)")] = None,
+    limit: Annotated[int, Query(ge=1, le=100, description="Taille de la page")] = 50,
+    offset: Offset = 0,
+) -> HistoryPage:
+    if since is not None and until is not None and ensure_utc(since) >= ensure_utc(until):
+        raise HTTPException(
+            status_code=422,
+            detail="La fin de la période doit être après son début",
+        )
+    return await service.history_page(
+        coop_id, categories=category, since=since, until=until, limit=limit, offset=offset
+    )
 
 
 @router.get(

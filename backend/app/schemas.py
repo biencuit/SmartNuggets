@@ -93,6 +93,39 @@ class AlertRead(ORMModel):
     created_at: UtcDatetime
 
 
+class HistoryCategory(StrEnum):
+    """Filtres de la page Historique (plusieurs à la fois ; aucun = tout)."""
+
+    ENTRIES = "entries"  # HEN_ENTRY
+    EXITS = "exits"  # HEN_EXIT
+    DOOR = "door"  # DOOR_OPEN, DOOR_CLOSE, OBSTACLE
+    ALERTS = "alerts"  # toutes les alertes
+
+
+class HistoryKind(StrEnum):
+    EVENT = "event"
+    ALERT = "alert"
+
+
+class HistoryItem(BaseModel):
+    """Une ligne de l'historique : un événement (passage, porte) OU une alerte."""
+
+    kind: HistoryKind
+    id: int = Field(description="Identifiant dans la table d'origine (events ou alerts)")
+    type: EventType | AlertType = Field(description="event_type ou alert_type")
+    occurred_at: UtcDatetime = Field(description="Date de l'événement ou de l'alerte (UTC)")
+    trigger_source: TriggerSource | None = Field(default=None, description="Événements seulement")
+    inside_count_after: int | None = Field(default=None, description="Événements seulement")
+    severity: Severity | None = Field(default=None, description="Alertes seulement")
+    image_url: str | None = Field(default=None, description="Alertes avec photo seulement")
+    acknowledged: bool | None = Field(default=None, description="Alertes seulement")
+
+
+class HistoryPage(BaseModel):
+    total: int = Field(description="Nombre total de résultats pour ces filtres (toutes pages)")
+    items: list[HistoryItem]
+
+
 class CommandAction(StrEnum):
     OPEN = "OPEN"
     CLOSE = "CLOSE"
