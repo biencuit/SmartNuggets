@@ -40,15 +40,16 @@ Raspberry Pi (`edge-coop/.env.example`).
 
 ## Certificats TLS
 
-`mosquitto.conf` attend `fullchain.pem` et `privkey.pem` dans `/mosquitto/certs`. Avec
-Let's Encrypt (Certbot), il faut les **copier** depuis `live/<domaine>/` dans un dossier lisible
-par l'utilisateur `mosquitto` du conteneur (hook de déploiement Certbot), puis redémarrer le
-broker à chaque renouvellement.
+`mosquitto.conf` attend `fullchain.pem` et `privkey.pem` dans `/mosquitto/certs`. Sur le VPS,
+c'est le certificat Let's Encrypt de `smartnuggets.be`, le même que pour le site web. Le
+conteneur ne lit pas `/etc/letsencrypt` : après chaque renouvellement, certbot lance
+`scripts/cert-hook.sh`, qui copie le certificat dans `mosquitto/certs/` puis redémarre le
+broker. Le Raspberry Pi n'a donc besoin d'aucun fichier de certificat (`MQTT_CA_CERT` vide).
 
 ## Tester à la main
 
 ```bash
-mosquitto_sub -h <domaine> -p 8883 --capath /etc/ssl/certs -u backend_service -P '<mdp>' -t 'smartnuggets/#' -v
-mosquitto_pub -h <domaine> -p 8883 --capath /etc/ssl/certs -u coop_01 -P '<mdp>' \
+mosquitto_sub -h smartnuggets.be -p 8883 --capath /etc/ssl/certs -u backend_service -P '<mdp>' -t 'smartnuggets/#' -v
+mosquitto_pub -h smartnuggets.be -p 8883 --capath /etc/ssl/certs -u coop_01 -P '<mdp>' \
   -t smartnuggets/coop_01/telemetry -m '{"sent_at": "2026-11-03T08:00:00Z", "inside_count": 4}'
 ```
