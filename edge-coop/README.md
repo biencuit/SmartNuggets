@@ -88,6 +88,19 @@ catégorie (`hen`, `predator`, `other`), une confiance entre 0 et 1 et un nom li
 - `ScriptedDetector` : renvoie ce qu'on lui demande (tests, mode démo).
 - Vrai modèle : écrire une classe avec `detect`, puis `DETECTOR=module:Classe` dans `.env`.
   Les poids du modèle (`*.pt`, `*.onnx`) et les jeux d'images (`datasets/`) restent hors de Git.
+- `YoloDetector` (`ai_detector/yolo.py`, US-DET-2) : YOLO11-nano d'Ultralytics, entraîné sur
+  COCO. Il n'y a pas de classe « poule » dans COCO : il garde la classe « bird » (n° 14) et
+  renvoie une détection `hen` par oiseau vu.
+
+  ```bash
+  pip install -e ".[yolo]"
+  # .env : DETECTOR=ai_detector.yolo:YoloDetector
+  yolo export model=yolo11n.pt format=ncnn   # sur le Pi, puis YOLO_MODEL=yolo11n_ncnn_model
+  python prototypes/detection_poule.py chemin/vers/images   # verdict et temps par image
+  ```
+
+  Limites : n'importe quel oiseau est pris pour une poule, et le modèle nano rate certaines
+  photos. Un fine-tuning sur nos propres images de poules corrigerait les deux.
 
 ## Programme du poulailler (`coop_app/`, `door_controller/`)
 
