@@ -69,7 +69,42 @@ tour de l'axe, au moins 1 ms entre deux pas (1,5 ms par défaut). Le moteur est 
 
 **Raspberry Pi 5.** `RPi.GPIO` ne fonctionne pas sur le Pi 5 : on utilise `gpiozero`
 (qui passe par `lgpio`). Installation : `pip install -e ".[pi]"` et
-`sudo apt install python3-picamera2` pour la caméra.
+`sudo apt install python3-picamera2` pour la caméra (voir la section suivante).
+
+### Caméra (module Freenove OV5647 ou IMX219)
+
+Picamera2 s'installe avec `apt`, pas avec `pip` : l'environnement Python du Pi doit donc
+voir les paquets du système (`--system-site-packages`).
+
+1. Pi **éteint et débranché**, brancher la nappe sur le connecteur **CAM0** (ou CAM1) du
+   Pi 5, contacts dorés tournés vers le bon côté (photos dans le tutoriel Freenove). Le Pi 5
+   a des connecteurs plus petits : utiliser la nappe « Raspberry Pi 5 » fournie.
+2. Déclarer la caméra : `sudo nano /boot/firmware/config.txt`, remplacer
+   `camera_auto_detect=1` par `camera_auto_detect=0` et ajouter à la fin
+   `dtoverlay=ov5647,cam0`. Le nom du capteur est écrit sur le module : avec un IMX219,
+   mettre `dtoverlay=imx219,cam0` ; sur le connecteur CAM1, `cam1` au lieu de `cam0`.
+   Puis `sudo reboot`.
+3. Tester sans notre code : `rpicam-hello --list-cameras` doit afficher la caméra, puis
+   `rpicam-jpeg -o test.jpg -t 2000` prend une photo.
+4. Installer et tester avec notre code :
+
+   ```bash
+   sudo apt install -y python3-picamera2
+   cd edge-coop
+   python3 -m venv --system-site-packages .venv && source .venv/bin/activate
+   pip install -e ".[pi]"
+   python -m hardware.camera_check        # crée test-camera.jpg (640 x 480)
+   ```
+
+5. Dans `.env` : `CAMERA=pi`. Si la caméra ne répond pas pendant que le programme tourne,
+   la porte et le comptage continuent ; l'application le signale dans la carte d'état (« Caméra »)
+   (`camera_ok = false`) et la caméra est rouverte toute seule au mouvement suivant.
+
+| Problème | Cause probable |
+|---|---|
+| `rpicam-hello` : *no cameras available* | nappe à l'envers ou mal enfoncée, mauvais `dtoverlay` (capteur ou CAM0/CAM1) |
+| `picamera2 introuvable` | `python3-picamera2` pas installé, ou `.venv` créé sans `--system-site-packages` |
+| *Device or resource busy* | un autre programme utilise la caméra (`rpicam-hello` encore ouvert, `coop_app` lancé deux fois) |
 
 Câblage par défaut (numéros BCM) :
 
