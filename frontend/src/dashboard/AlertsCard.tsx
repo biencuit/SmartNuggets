@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import type { CoopAlert } from "../api/client";
-import { ALERT_ADVICE, ALERT_TITLES, formatDateTime } from "./labels";
+import { ALERT_TITLES, alertAdvice, formatDateTime } from "./labels";
 
 type Filter = "unread" | "all";
 
@@ -120,7 +120,7 @@ export function AlertsCard({
                     </button>
                   )}
                 </div>
-                <p className="mt-1 text-sm text-stone-600">{ALERT_ADVICE[alert.alert_type]}</p>
+                <p className="mt-1 text-sm text-stone-600">{alertAdvice(alert)}</p>
                 {alert.image_url && (
                   <div className="mt-2">
                     <button

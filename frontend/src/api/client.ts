@@ -79,6 +79,8 @@ export interface CoopAlert {
   severity: Severity;
   ai_confidence: number | null;
   image_url: string | null;
+  /** MISSING_HEN : nombre de poules encore dehors à la fermeture du soir. */
+  missing_count?: number | null;
   acknowledged: boolean;
   /** ISO 8601, UTC. */
   created_at: string;
@@ -169,6 +171,13 @@ export const api = {
   /** L'identifiant est celui du compte MQTT du Raspberry Pi (409 s'il est déjà pris). */
   createCoop: (token: string, coop: CoopCreate) =>
     apiFetch<Coop>("/coops", { method: "POST", token, json: coop }),
+  /** Réglages du poulailler : pour l'instant le nombre total de poules (US-COMPT-3). */
+  updateCoop: (token: string, coopId: string, changes: { total_hens: number }) =>
+    apiFetch<Coop>(`/coops/${encodeURIComponent(coopId)}`, {
+      method: "PATCH",
+      token,
+      json: changes,
+    }),
   getStatus: (token: string, coopId: string) =>
     apiFetch<CoopStatus>(`/coops/${encodeURIComponent(coopId)}/status`, { token }),
   /** Historique, du plus récent au plus ancien (200 éléments au maximum par appel). */

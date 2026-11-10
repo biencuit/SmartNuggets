@@ -22,6 +22,7 @@ from app.schemas import (
     CoopCreate,
     CoopRead,
     CoopStatus,
+    CoopUpdate,
     EventRead,
 )
 from app.services.sse import event_stream
@@ -51,6 +52,25 @@ async def list_coops(service: CoopServiceDep) -> list[CoopRead]:
 )
 async def create_coop(data: CoopCreate, service: CoopServiceDep) -> CoopRead:
     coop = await service.create_coop(data)
+    return CoopRead.model_validate(coop)
+
+
+@router.patch(
+    "/{coop_id}",
+    response_model=CoopRead,
+    summary="Modifier les réglages du poulailler (nombre total de poules)",
+    description=(
+        "Le nombre total sert à savoir combien de poules sont dehors, et à prévenir "
+        "l'éleveur si la porte se ferme le soir avant que toutes soient rentrées."
+    ),
+)
+async def update_coop(
+    coop_id: str, data: CoopUpdate, service: CoopServiceDep, broadcaster: BroadcasterDep
+) -> CoopRead:
+    coop = await service.update_coop(coop_id, data)
+    # Les pages ouvertes (flux temps réel) voient tout de suite le nouveau total.
+    status_now = await service.get_status(coop_id)
+    broadcaster.publish(coop_id, "status", status_now.model_dump(mode="json"))
     return CoopRead.model_validate(coop)
 
 

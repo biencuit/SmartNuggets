@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.errors import ForbiddenError, NotFoundError
 from app.models import Alert, Coop, Event
 from app.repositories import AlertRepository, CoopRepository, DeviceRepository, EventRepository
-from app.schemas import CommandRequest, CoopCreate, CoopStatus
+from app.schemas import CommandRequest, CoopCreate, CoopStatus, CoopUpdate
 from app.security import normalize_claim_code, verify_password
 from app.services.commands import CommandPublisher, DoorCommand
 from app.timeutils import ensure_utc, utcnow
@@ -73,6 +73,14 @@ class CoopService:
         coop = await self.coops.get(coop_id, owner_id=self.owner_id)
         if coop is None:
             raise NotFoundError(f"Poulailler {coop_id!r} introuvable")
+        return coop
+
+    async def update_coop(self, coop_id: str, data: CoopUpdate) -> Coop:
+        """Change le nombre total de poules (US-COMPT-3). Seul le propriétaire le peut :
+        `get_coop` répond 404 pour le poulailler d'un autre éleveur."""
+        coop = await self.get_coop(coop_id)
+        coop.total_hens = data.total_hens
+        await self.session.commit()
         return coop
 
     async def get_status(self, coop_id: str) -> CoopStatus:

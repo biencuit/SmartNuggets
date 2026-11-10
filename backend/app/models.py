@@ -145,5 +145,7 @@ class Alert(Base):
     severity: Mapped[str] = mapped_column(String(16))
     ai_confidence: Mapped[float | None] = mapped_column(Float)
     image_url: Mapped[str | None] = mapped_column(String(255))
+    # MISSING_HEN : nombre de poules encore dehors au moment de la fermeture du soir.
+    missing_count: Mapped[int | None] = mapped_column(Integer)
     acknowledged: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
