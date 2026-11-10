@@ -1,29 +1,23 @@
 """Données de démonstration : `python -m app.seed` (après `alembic upgrade head`).
 
-Crée un éleveur de démo et le poulailler `coop_01` avec quelques événements et une alerte,
-pour pouvoir développer l'application sans le Raspberry Pi. Enregistre aussi un Pi `coop_02`
-qui n'est encore sur aucun compte, pour tester « Ajouter un poulailler » avec son code.
+Crée un éleveur de démo et le poulailler `coop_01` avec deux semaines d'historique (passages,
+porte, alertes dont un renard avec photo, voir `app/demo_history.py`), pour pouvoir développer
+l'application sans le Raspberry Pi. Enregistre aussi un Pi `coop_02` qui n'est encore sur aucun
+compte, pour tester « Ajouter un poulailler » avec son code.
+
+`python -m app.seed --historique` régénère l'historique d'une base existante.
 """
 
+import argparse
 import asyncio
-from datetime import time, timedelta
+from datetime import time
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.db import create_engine, create_sessionmaker
-from app.models import (
-    Alert,
-    AlertType,
-    Coop,
-    Device,
-    DoorState,
-    Event,
-    EventType,
-    Severity,
-    TriggerSource,
-    User,
-)
+from app.demo_history import add_demo_history
+from app.models import Coop, Device, DoorState, User
 from app.repositories import CoopRepository, DeviceRepository, UserRepository
 from app.security import hash_password, normalize_claim_code
 from app.timeutils import utcnow
@@ -48,8 +42,9 @@ async def reset_free_device(session: AsyncSession) -> None:
         device.claim_code_hash = code_hash
 
 
-async def seed() -> None:
-    engine = create_engine(get_settings().database_url)
+async def seed(regenerate_history: bool = False) -> None:
+    settings = get_settings()
+    engine = create_engine(settings.database_url)
     sessionmaker = create_sessionmaker(engine)
     async with sessionmaker() as session:
         users = UserRepository(session)
@@ -57,6 +52,10 @@ async def seed() -> None:
         if existing is not None:
             existing.password_hash = hash_password(DEMO_PASSWORD)
             await reset_free_device(session)
+            coop = await CoopRepository(session).get(DEMO_COOP_ID, owner_id=existing.id)
+            if regenerate_history and coop is not None:
+                history = await add_demo_history(session, coop, settings.media_dir, replace=True)
+                print(f"Historique de démo régénéré : {len(history.events)} événements.")
             await session.commit()
             await engine.dispose()
             print(f"Données de démo déjà présentes ({DEMO_EMAIL} / {DEMO_PASSWORD}).")
@@ -66,55 +65,21 @@ async def seed() -> None:
         user = await users.add(User(email=DEMO_EMAIL, password_hash=hash_password(DEMO_PASSWORD)))
         await DeviceRepository(session).add(Device(id=DEMO_COOP_ID, claimed_at=utcnow()))
         await reset_free_device(session)
-        await CoopRepository(session).add(
+        coop = await CoopRepository(session).add(
             Coop(
                 id=DEMO_COOP_ID,
                 owner_id=user.id,
                 name="Poulailler de Marc",
                 total_hens=10,
-                inside_count=8,
-                door_state=DoorState.OPEN,
+                inside_count=10,
+                door_state=DoorState.CLOSED,
                 auto_close_time=time(21, 30),
                 battery_level=87,
                 last_seen_at=utcnow(),
             )
         )
-        now = utcnow()
-        session.add_all(
-            [
-                Event(
-                    coop_id=DEMO_COOP_ID,
-                    event_type=EventType.DOOR_OPEN,
-                    trigger_source=TriggerSource.AI_AUTO,
-                    inside_count_after=10,
-                    ai_confidence=0.94,
-                    occurred_at=now - timedelta(minutes=30),
-                ),
-                Event(
-                    coop_id=DEMO_COOP_ID,
-                    event_type=EventType.HEN_EXIT,
-                    trigger_source=TriggerSource.AI_AUTO,
-                    inside_count_after=9,
-                    ai_confidence=0.91,
-                    occurred_at=now - timedelta(minutes=29),
-                ),
-                Event(
-                    coop_id=DEMO_COOP_ID,
-                    event_type=EventType.HEN_EXIT,
-                    trigger_source=TriggerSource.AI_AUTO,
-                    inside_count_after=8,
-                    ai_confidence=0.89,
-                    occurred_at=now - timedelta(minutes=12),
-                ),
-                Alert(
-                    coop_id=DEMO_COOP_ID,
-                    alert_type=AlertType.PREDATOR_DETECTED,
-                    severity=Severity.CRITICAL,
-                    ai_confidence=0.87,
-                    created_at=now - timedelta(hours=10),
-                ),
-            ]
-        )
+        history = await add_demo_history(session, coop, settings.media_dir)
+        print(f"Historique de démo : {len(history.events)} événements sur deux semaines.")
         await session.commit()
     await engine.dispose()
     print(
@@ -124,4 +89,10 @@ async def seed() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(seed())
+    parser = argparse.ArgumentParser(description="Données de démonstration (local uniquement)")
+    parser.add_argument(
+        "--historique",
+        action="store_true",
+        help="efface et régénère l'historique de démo du poulailler coop_01",
+    )
+    asyncio.run(seed(regenerate_history=parser.parse_args().historique))
