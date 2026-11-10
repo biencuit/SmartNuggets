@@ -77,8 +77,10 @@ la place de l'image fixe : `DEMO_CAMERA=video:/chemin/poule.mp4 bash scripts/dev
 ## Déploiement
 
 Le serveur (VPS Ubuntu) fait tourner `docker-compose.prod.yml` : nginx (application web et
-reverse proxy de l'API), l'API, PostgreSQL et le broker Mosquitto. Seuls les ports 80 (HTTP)
-et 8883 (MQTT en TLS, pour les Raspberry Pi) sont ouverts.
+reverse proxy de l'API), l'API, PostgreSQL et le broker Mosquitto. L'application est en ligne
+sur https://smartnuggets.be. Seuls les ports 80 (renvoie vers HTTPS), 443 (HTTPS) et 8883 (MQTT
+en TLS, pour les Raspberry Pi) sont ouverts. Le certificat Let's Encrypt se renouvelle tout seul
+(certbot).
 
 Après chaque CI verte sur `main`, `.github/workflows/deploy.yml` se connecte au VPS et lance
 `scripts/deploy.sh`. Installation complète du serveur : voir le wiki, pages 11 (Hébergement -
