@@ -3,6 +3,7 @@
 import uuid
 from collections.abc import Sequence
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,12 +21,14 @@ from app.schemas import (
     CommandRequest,
     CoopCreate,
     CoopStatus,
+    HabitsRead,
     HistoryCategory,
     HistoryItem,
     HistoryPage,
 )
 from app.security import normalize_claim_code, verify_password
 from app.services.commands import CommandPublisher, DoorCommand
+from app.services.habits import PASSAGE_TYPES, compute_habits, period_start, utc_bounds
 from app.timeutils import ensure_utc, utcnow
 
 DEFAULT_OFFLINE_AFTER_S = 900
@@ -151,6 +154,18 @@ class CoopService:
         return HistoryPage(
             total=total, items=[HistoryItem.model_validate(dict(row._mapping)) for row in rows]
         )
+
+    async def get_habits(
+        self, coop_id: str, *, days: int, tz: ZoneInfo, now: datetime | None = None
+    ) -> HabitsRead:
+        """Habitudes des `days` derniers jours, aujourd'hui compris, en heure locale `tz`."""
+        await self.get_coop(coop_id)
+        first_day = period_start(now or utcnow(), tz, days)
+        since, until = utc_bounds(first_day, days, tz)
+        passages = await self.events.list_between(
+            coop_id, event_types=PASSAGE_TYPES, since=since, until=until
+        )
+        return compute_habits(passages, tz, first_day, days)
 
     async def get_alert(self, coop_id: str, alert_id: int) -> Alert:
         await self.get_coop(coop_id)

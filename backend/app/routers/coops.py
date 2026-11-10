@@ -24,9 +24,11 @@ from app.schemas import (
     CoopRead,
     CoopStatus,
     EventRead,
+    HabitsRead,
     HistoryCategory,
     HistoryPage,
 )
+from app.services.habits import DEFAULT_TIMEZONE, UnknownTimezoneError, load_timezone
 from app.services.sse import event_stream
 from app.timeutils import ensure_utc
 
@@ -110,6 +112,36 @@ async def get_history(
     return await service.history_page(
         coop_id, categories=category, since=since, until=until, limit=limit, offset=offset
     )
+
+
+@router.get(
+    "/{coop_id}/habits",
+    response_model=HabitsRead,
+    summary="Habitudes des poules : sorties et retours par jour et par heure",
+    description=(
+        "Résumé des entrées et sorties des `days` derniers jours (aujourd'hui compris). "
+        "Les jours et les heures sont ceux du fuseau `tz` (nom IANA, Europe/Brussels par "
+        "défaut) : un passage à 23 h 30 à Bruxelles compte pour ce jour-là, même en hiver."
+    ),
+    responses={422: {"description": "Nombre de jours hors de 1..31 ou fuseau inconnu"}},
+)
+async def get_habits(
+    coop_id: str,
+    service: CoopServiceDep,
+    days: Annotated[int, Query(ge=1, le=31, description="Nombre de jours")] = 7,
+    tz: Annotated[
+        str,
+        Query(
+            pattern=r"^[A-Za-z0-9_+/-]{1,64}$",
+            description="Fuseau horaire IANA, par exemple Europe/Brussels",
+        ),
+    ] = DEFAULT_TIMEZONE,
+) -> HabitsRead:
+    try:
+        zone = load_timezone(tz)
+    except UnknownTimezoneError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return await service.get_habits(coop_id, days=days, tz=zone)
 
 
 @router.get(
