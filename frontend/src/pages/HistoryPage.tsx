@@ -4,10 +4,12 @@ import { Link, useParams } from "react-router-dom";
 import { api, ApiError, type Coop } from "../api/client";
 import { useAuth } from "../auth/useAuth";
 import { AppHeader } from "../components/AppHeader";
+import { HabitsSection } from "../history/HabitsSection";
 import { HistoryJournal } from "../history/HistoryJournal";
 
 /**
- * Page Historique d'un poulailler (#27, US perso de Théo) : journal complet et filtrable.
+ * Page Historique d'un poulailler (#27, US perso de Théo) : habitudes des poules en haut,
+ * journal complet et filtrable en dessous.
  */
 export function HistoryPage() {
   const { coopId = "" } = useParams();
@@ -67,6 +69,7 @@ export function HistoryPage() {
               <h1 className="text-2xl font-semibold text-stone-900">Historique</h1>
               <p className="text-stone-600">{coop.name}</p>
             </div>
+            <HabitsSection coopId={coop.id} />
             <HistoryJournal coopId={coop.id} />
           </>
         )}
