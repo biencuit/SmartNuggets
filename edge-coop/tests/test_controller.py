@@ -187,6 +187,101 @@ def test_obstacle_a_la_fermeture(env):
     assert uplink.events()[-1] == "OBSTACLE"
 
 
+def test_apres_un_obstacle_la_fermeture_automatique_attend_puis_reessaie(env):
+    controller, devices, _, uplink, clock = env
+    controller.on_command("OPEN")
+    clock.now = NIGHT
+    devices.beam_outer.active = True  # une poule reste dans l'encadrement
+    controller.tick()
+    controller.tick()  # trop tôt : pas de nouvel essai
+    assert uplink.events() == ["DOOR_OPEN", "OBSTACLE"]
+    clock.t += 11
+    controller.tick()
+    assert uplink.events() == ["DOOR_OPEN", "OBSTACLE", "OBSTACLE"]
+    devices.beam_outer.active = False  # la poule est partie
+    clock.t += 15  # l'attente a doublé : 20 s
+    controller.tick()
+    assert controller.door.state == DoorState.OPEN
+    clock.t += 6
+    controller.tick()
+    assert controller.door.state == DoorState.CLOSED
+    assert uplink.events()[-1] == "DOOR_CLOSE"
+
+
+def test_alerte_a_l_eleveur_une_seule_fois_puis_compteur_remis_a_zero(env):
+    controller, devices, _, uplink, clock = env
+    controller.on_command("OPEN")
+    clock.now = NIGHT
+    devices.beam_inner.active = True
+    for _ in range(5):
+        controller.tick()
+        clock.t += 100  # plus long que n'importe quelle attente
+    assert uplink.events().count("OBSTACLE") == 5
+    assert uplink.alerts() == ["DOOR_BLOCKED"]
+    alert = [s for s in uplink.sent if s[0] == "alert"][0]
+    assert alert[2]["severity"] == "WARNING"
+    devices.beam_inner.active = False
+    controller.tick()
+    assert controller.door.state == DoorState.CLOSED
+    # Le lendemain, deux obstacles ne suffisent plus à déclencher l'alerte.
+    clock.now = DAY
+    controller.on_command("OPEN")
+    clock.now = NIGHT
+    devices.beam_inner.active = True
+    for _ in range(2):
+        controller.tick()
+        clock.t += 100
+    assert uplink.alerts() == ["DOOR_BLOCKED"]
+
+
+def test_fermeture_apres_passage_reessaie_apres_un_obstacle(env):
+    controller, devices, detector, uplink, clock = env
+    detector.show(Label.HEN, 0.9)
+    mouvement(controller, devices)
+    assert controller.door.state == DoorState.OPEN
+    devices.beam_inner.active = True  # une poule traîne dans l'encadrement
+    clock.t += 31
+    controller.tick()
+    assert controller.door.state == DoorState.OPEN
+    assert uplink.events()[-1] == "OBSTACLE"
+    devices.beam_inner.active = False
+    clock.t += 11
+    controller.tick()
+    assert controller.door.state == DoorState.CLOSED
+
+
+def test_predateur_pendant_qu_une_poule_est_dans_l_encadrement(env):
+    controller, devices, detector, _, clock = env
+    controller.on_command("OPEN")
+    devices.beam_outer.active = True
+    detector.show(Label.PREDATOR, 0.8, "renard")
+    mouvement(controller, devices)
+    assert controller.door.state == DoorState.OPEN  # jamais de fermeture sur une poule
+    devices.beam_outer.active = False
+    clock.t += 11
+    controller.tick()
+    assert controller.door.state == DoorState.CLOSED
+
+
+def test_la_commande_manuelle_n_attend_pas_le_delai(env):
+    controller, devices, _, _, _ = env
+    controller.on_command("OPEN")
+    devices.beam_outer.active = True
+    controller.on_command("CLOSE")
+    assert controller.door.state == DoorState.OPEN
+    devices.beam_outer.active = False
+    controller.on_command("CLOSE")
+    assert controller.door.state == DoorState.CLOSED
+
+
+def test_reglages_anti_pincement_depuis_l_environnement():
+    config = AppConfig.from_env(
+        {"OBSTACLE_RETRY_S": "5", "OBSTACLE_MAX_ATTEMPTS": "2", "DOOR_CHECK_EVERY": "8"}
+    )
+    assert config.obstacle_retry_s == 5 and config.obstacle_max_attempts == 2
+    assert config.door.check_every == 8
+
+
 def test_camera_en_panne_signalee(env):
     controller, devices, _, uplink, _ = env
     devices.camera.broken = True

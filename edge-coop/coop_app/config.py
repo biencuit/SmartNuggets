@@ -27,6 +27,8 @@ class AppConfig:
     predator_threshold: float = 0.5
     predator_lock_s: float = 300.0  # porte verrouillée après un prédateur
     auto_close_after_s: float = 60.0  # refermer quand plus aucune poule ne passe
+    obstacle_retry_s: float = 10.0  # attente avant de réessayer de fermer (x1, x2, x3 puis fixe)
+    obstacle_max_attempts: int = 3  # fermetures empêchées d'affilée avant l'alerte à l'éleveur
     heartbeat_s: float = 60.0
     poll_s: float = 0.05  # lecture des capteurs (20 fois par seconde)
     motor_pins: tuple[int, ...] = (5, 6, 13, 19)
@@ -52,6 +54,7 @@ class AppConfig:
             door=DoorConfig(
                 travel_steps=int(get("DOOR_TRAVEL_STEPS", d.door.travel_steps)),
                 margin_steps=int(get("DOOR_MARGIN_STEPS", d.door.margin_steps)),
+                check_every=int(get("DOOR_CHECK_EVERY", d.door.check_every)),
             ),
             step_delay_s=float(get("STEP_DELAY_S", d.step_delay_s)),
             schedule=Schedule.parse(get("OPEN_FROM", "07:00"), get("CLOSE_AT", "21:00")),
@@ -59,6 +62,8 @@ class AppConfig:
             predator_threshold=float(get("PREDATOR_THRESHOLD", d.predator_threshold)),
             predator_lock_s=float(get("PREDATOR_LOCK_S", d.predator_lock_s)),
             auto_close_after_s=float(get("AUTO_CLOSE_AFTER_S", d.auto_close_after_s)),
+            obstacle_retry_s=float(get("OBSTACLE_RETRY_S", d.obstacle_retry_s)),
+            obstacle_max_attempts=int(get("OBSTACLE_MAX_ATTEMPTS", d.obstacle_max_attempts)),
             heartbeat_s=float(get("HEARTBEAT_S", d.heartbeat_s)),
             motor_pins=_pins(get("MOTOR_PINS", "5,6,13,19")),
             top_pin=int(get("TOP_PIN", d.top_pin)),

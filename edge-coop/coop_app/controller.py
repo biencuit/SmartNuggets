@@ -8,6 +8,9 @@ Règles (dans l'ordre de priorité) :
    aucune poule n'est passée depuis `auto_close_after_s`. (#10)
 4. Commandes de l'application : OPEN, CLOSE, CALIBRATE (correction du compteur). (#13)
 5. Chaque passage entre les barrières IR met à jour le compteur. (#16, #17)
+6. Anti-pincement : la porte ne se ferme jamais sur une poule (voir `Door`). Si la fermeture
+   est empêchée, les fermetures automatiques réessaient après `obstacle_retry_s`, puis le
+   double, le triple… ; après `obstacle_max_attempts` essais, alerte à l'éleveur. (#12)
 
 Tout est appelé depuis un seul thread (`CoopApp.run`) : pas de verrou nécessaire.
 """
@@ -75,6 +78,8 @@ class CoopController:
         self.camera_ok = True
         self._predator_until = 0.0
         self._opened_for_hen_at: float | None = None
+        self._obstacle_attempts = 0
+        self._close_retry_at = 0.0
         self._last_activity = 0.0
         self._last_heartbeat: float | None = None
         self._motion_before = False
@@ -96,6 +101,9 @@ class CoopController:
         if night and self.door.state != DoorState.CLOSED and not self._door_in_error():
             logger.info("Fin de journée : fermeture de la porte")
             self._close(Source.SCHEDULE)
+        elif self.predator_locked() and self.door.state == DoorState.OPEN:
+            logger.info("Prédateur récent et porte ouverte : nouvel essai de fermeture")
+            self._close(Source.FAILSAFE)
         elif (
             self._opened_for_hen_at is not None
             and self.door.state == DoorState.OPEN
@@ -192,8 +200,12 @@ class CoopController:
         self._handle(self.door.open(source), source, ai_confidence)
 
     def _close(self, source: Source) -> None:
-        self._opened_for_hen_at = None
-        self._handle(self.door.close(source), source, None)
+        if source != Source.MANUAL_APP and self.clock() < self._close_retry_at:
+            return  # une fermeture vient d'être empêchée : on laisse le temps de dégager
+        result = self.door.close(source)
+        if result != MoveResult.OBSTACLE:
+            self._opened_for_hen_at = None  # sinon la fermeture automatique réessaiera
+        self._handle(result, source, None)
 
     def _handle(self, result: MoveResult, source: Source, ai_confidence: float | None) -> None:
         if result == MoveResult.BLOCKED:
@@ -205,7 +217,10 @@ class CoopController:
                 inside_count=self.counter.inside,
                 trigger_source=Source.FAILSAFE,
             )
+            self._on_obstacle()
         elif result == MoveResult.DONE:
+            self._obstacle_attempts = 0
+            self._close_retry_at = 0.0
             event = "DOOR_OPEN" if self.door.state == DoorState.OPEN else "DOOR_CLOSE"
             self.uplink.send_event(
                 event,
@@ -214,6 +229,15 @@ class CoopController:
                 trigger_source=str(source),
                 ai_confidence=ai_confidence,
             )
+
+    def _on_obstacle(self) -> None:
+        max_attempts = max(1, self.config.obstacle_max_attempts)
+        self._obstacle_attempts += 1
+        wait = min(self._obstacle_attempts, max_attempts) * self.config.obstacle_retry_s
+        self._close_retry_at = self.clock() + wait
+        if self._obstacle_attempts == max_attempts:
+            logger.error("Fermeture empêchée %d fois de suite : alerte", self._obstacle_attempts)
+            self.uplink.send_alert("DOOR_BLOCKED", "WARNING")
 
     def _alert_blocked(self) -> None:
         self.uplink.send_alert("DOOR_BLOCKED", "CRITICAL")

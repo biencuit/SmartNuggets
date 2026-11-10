@@ -76,11 +76,17 @@ class Door:
     def open(self, source: Source) -> MoveResult:
         if self.state == DoorState.OPEN:
             return MoveResult.ALREADY
+        if self._obstacle():
+            logger.warning("Fermeture refusée : obstacle dans l'encadrement")
+            return MoveResult.OBSTACLE
         return self._move(Direction.UP, source)
 
     def close(self, source: Source) -> MoveResult:
         if self.state == DoorState.CLOSED:
             return MoveResult.ALREADY
+        if self._obstacle():
+            logger.warning("Fermeture refusée : obstacle dans l'encadrement")
+            return MoveResult.OBSTACLE
         return self._move(Direction.DOWN, source)
 
     def calibrate(self) -> MoveResult:

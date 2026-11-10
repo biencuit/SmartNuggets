@@ -100,6 +100,22 @@ def test_obstacle_pendant_la_fermeture_la_porte_remonte():
     assert changes[-2:] == [(DoorState.OPENING, Source.FAILSAFE), (DoorState.OPEN, Source.FAILSAFE)]
 
 
+def test_fermeture_refusee_sans_bouger_si_un_obstacle_est_deja_la():
+    door, motor, changes = make_door(obstacle=FakeSwitch(active=True), initial=DoorState.OPEN)
+    assert door.close(Source.SCHEDULE) == MoveResult.OBSTACLE
+    assert door.state == DoorState.OPEN
+    assert motor.steps == 0 and changes == []
+
+
+def test_obstacle_qui_disparait_la_fermeture_reussit():
+    obstacle = FakeSwitch(active=True)
+    door, motor, _ = make_door(obstacle=obstacle, initial=DoorState.OPEN)
+    assert door.close(Source.SCHEDULE) == MoveResult.OBSTACLE
+    obstacle.active = False
+    assert door.close(Source.SCHEDULE) == MoveResult.DONE
+    assert door.state == DoorState.CLOSED and motor.position == -100
+
+
 def test_calibrage_au_demarrage_descend_jusqu_au_fin_de_course_bas():
     motor = FakeStepper()
     motor.position = 37  # porte à mi-hauteur après une coupure de courant
