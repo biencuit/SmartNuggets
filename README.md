@@ -60,11 +60,27 @@ et une caméra en panne, `r` remet tout en ordre, `o`/`f` ouvrent ou ferment la 
 depuis l'API, `q` arrête tout. Le script crée les environnements Python au premier
 lancement ; depuis WSL, il utilise le Node.js de Windows si besoin.
 
+### Mode démo
+
+```bash
+bash scripts/dev.sh --demo
+```
+
+Le vrai programme du Raspberry Pi (`edge-coop/coop_app`) tourne sur du matériel simulé et
+rejoue une journée en 2 minutes (`edge-coop/scenarios/journee.json`) : une poule fait
+ouvrir la porte, quatre sortent, un renard fait fermer la porte (alerte avec photo), la
+porte reste verrouillée, puis trois poules rentrent et la porte se ferme le soir avec une
+poule dehors. Tout s'affiche en direct dans l'application. Pour montrer une vraie vidéo à
+la place de l'image fixe : `DEMO_CAMERA=video:/chemin/poule.mp4 bash scripts/dev.sh --demo`
+(il faut l'extra `video` d'edge-coop : `pip install -e "edge-coop[video]"`).
+
 ## Déploiement
 
 Le serveur (VPS Ubuntu) fait tourner `docker-compose.prod.yml` : nginx (application web et
-reverse proxy de l'API), l'API, PostgreSQL et le broker Mosquitto. Seuls les ports 80 (HTTP)
-et 8883 (MQTT en TLS, pour les Raspberry Pi) sont ouverts.
+reverse proxy de l'API), l'API, PostgreSQL et le broker Mosquitto. L'application est en ligne
+sur https://smartnuggets.be. Seuls les ports 80 (renvoie vers HTTPS), 443 (HTTPS) et 8883 (MQTT
+en TLS, pour les Raspberry Pi) sont ouverts. Le certificat Let's Encrypt se renouvelle tout seul
+(certbot).
 
 Après chaque CI verte sur `main`, `.github/workflows/deploy.yml` se connecte au VPS et lance
 `scripts/deploy.sh`. Installation complète du serveur : voir le wiki, pages 11 (Hébergement -

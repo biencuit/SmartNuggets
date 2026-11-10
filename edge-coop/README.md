@@ -88,6 +88,19 @@ catégorie (`hen`, `predator`, `other`), une confiance entre 0 et 1 et un nom li
 - `ScriptedDetector` : renvoie ce qu'on lui demande (tests, mode démo).
 - Vrai modèle : écrire une classe avec `detect`, puis `DETECTOR=module:Classe` dans `.env`.
   Les poids du modèle (`*.pt`, `*.onnx`) et les jeux d'images (`datasets/`) restent hors de Git.
+- `YoloDetector` (`ai_detector/yolo.py`, US-DET-2) : YOLO11-nano d'Ultralytics, entraîné sur
+  COCO. Il n'y a pas de classe « poule » dans COCO : il garde la classe « bird » (n° 14) et
+  renvoie une détection `hen` par oiseau vu.
+
+  ```bash
+  pip install -e ".[yolo]"
+  # .env : DETECTOR=ai_detector.yolo:YoloDetector
+  yolo export model=yolo11n.pt format=ncnn   # sur le Pi, puis YOLO_MODEL=yolo11n_ncnn_model
+  python prototypes/detection_poule.py chemin/vers/images   # verdict et temps par image
+  ```
+
+  Limites : n'importe quel oiseau est pris pour une poule, et le modèle nano rate certaines
+  photos. Un fine-tuning sur nos propres images de poules corrigerait les deux.
 
 ## Programme du poulailler (`coop_app/`, `door_controller/`)
 
@@ -110,6 +123,14 @@ et `Schedule` (plage horaire). Au démarrage, la porte est recalée en bas.
 HARDWARE=mock CAMERA=mock COOP_ID=coop_01 MQTT_HOST=127.0.0.1 MQTT_PORT=1883 MQTT_TLS=false \
   python -m coop_app       # sur un PC, avec le broker de scripts/dev.sh
 ```
+
+## Mode démo
+
+`python -m coop_app --demo scenarios/journee.json` (ou `bash scripts/dev.sh --demo` à la
+racine) : le scénario pilote les capteurs simulés et le détecteur simulé, le reste du
+programme est le vrai. Actions possibles : `hen`, `predator`, `exit`, `enter` (avec
+`count`), `evening` (avance l'horloge jusqu'à `CLOSE_AT`), `morning`. Le test
+`tests/test_demo.py` rejoue ce scénario en accéléré à chaque CI.
 
 ## Prototype de la porte
 

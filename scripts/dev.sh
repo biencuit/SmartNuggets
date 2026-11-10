@@ -6,13 +6,15 @@
 #   bash scripts/dev.sh --sans-pi    sans le faux Pi (pour brancher le vrai)
 #   bash scripts/dev.sh --sans-web   sans l'application web
 #   bash scripts/dev.sh --reset      repartir d'une base de démo neuve
+#   bash scripts/dev.sh --demo       le vrai programme du Pi rejoue une journée (scénario)
 #
 # Prévu pour Linux / WSL. Il faut Python 3.11+, Mosquitto (sudo apt install mosquitto)
 # et Node.js (celui de Windows convient depuis WSL). Tout ce qui est généré (base SQLite,
 # config du broker, file d'attente du Pi, photos) va dans le dossier .dev/ (ignoré par git).
 #
 # Variables utiles : API_PORT (8000), MQTT_PORT (1883), DEVICE_OFFLINE_AFTER_S (60),
-# MOSQUITTO (chemin du binaire), SN_BACKEND_VENV et SN_EDGE_VENV (environnements Python).
+# MOSQUITTO (chemin du binaire), SN_BACKEND_VENV et SN_EDGE_VENV (environnements Python),
+# DEMO_SCENARIO (scénario de --demo) et DEMO_CAMERA (ex. video:/chemin/poule.mp4).
 
 set -euo pipefail
 
@@ -32,13 +34,16 @@ API_URL="http://127.0.0.1:$API_PORT/api/v1"
 WITH_PI=1
 WITH_WEB=1
 RESET=0
+DEMO=0
+DEMO_SCENARIO="${DEMO_SCENARIO:-scenarios/journee.json}"
 for arg in "$@"; do
   case "$arg" in
     --sans-pi) WITH_PI=0 ;;
     --sans-web) WITH_WEB=0 ;;
     --reset) RESET=1 ;;
+    --demo) DEMO=1 RESET=1 ;;
     -h | --help)
-      sed -n '2,15p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+      sed -n '2,17p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
       exit 0
       ;;
     *)
@@ -244,6 +249,20 @@ start_api() {
 }
 
 start_pi() {
+  if ((DEMO)); then
+    # Le vrai programme du Pi (porte, comptage, règles) sur du matériel simulé, piloté par
+    # un scénario. Délais raccourcis pour que la journée tienne en 2 minutes.
+    (
+      cd "$ROOT/edge-coop"
+      exec env COOP_ID="$COOP_ID" MQTT_HOST=127.0.0.1 MQTT_PORT="$MQTT_PORT" MQTT_TLS=false \
+        OUTBOX_PATH="$STATE/outbox.db" HARDWARE=mock CAMERA="${DEMO_CAMERA:-mock}" \
+        STEP_DELAY_S=0.001 DOOR_TRAVEL_STEPS=2048 PREDATOR_LOCK_S=30 AUTO_CLOSE_AFTER_S=600 \
+        HEARTBEAT_S=10 INSIDE_AT_START=10 \
+        "$EDGE_PY" -m coop_app --demo "$DEMO_SCENARIO"
+    ) > >(prefix "$GREEN[pi]$RESET_COLOR ") 2>&1 &
+    PI_PID=$!
+    return
+  fi
   (
     cd "$ROOT/edge-coop"
     exec env COOP_ID="$COOP_ID" MQTT_HOST=127.0.0.1 MQTT_PORT="$MQTT_PORT" MQTT_TLS=false \
