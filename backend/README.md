@@ -23,7 +23,14 @@ fichier SQLite local `smartnuggets.db`.
 alembic upgrade head      # crée / met à jour le schéma
 python -m app.seed        # compte demo@smartnuggets.be / poulailler + poulailler coop_01
                           # + Pi coop_02 à ajouter avec le code DEMO-DEMO-0002
+python -m app.seed --historique   # régénère l'historique de démo d'une base existante
 ```
+
+Le poulailler de démo a deux semaines d'historique jusqu'à hier (`app/demo_history.py`) :
+passages réalistes à l'heure de Bruxelles, porte qui suit les règles du Pi, et un renard avec
+photo il y a trois jours (`app/demo/renard.jpg`, une illustration). Le tirage a une graine
+fixe : la démo est toujours la même. Aujourd'hui reste vide pour les vraies données (ou le
+scénario de `scripts/dev.sh --demo`).
 
 Pour PostgreSQL, copier `.env.example` en `.env` et adapter `DATABASE_URL`.
 
@@ -78,6 +85,8 @@ uvicorn app.main:create_app --factory --reload
 | GET | `/coops/{coop_id}/status` | État actuel : porte, compteurs, batterie, dernière communication |
 | GET | `/coops/{coop_id}/events?type=&limit=&offset=` | Historique paginé des passages et événements |
 | GET | `/coops/{coop_id}/alerts?acknowledged=&limit=&offset=` | Alertes, de la plus récente à la plus ancienne |
+| GET | `/coops/{coop_id}/history?category=&since=&until=&limit=&offset=` | Historique complet (#27) : passages, porte et alertes mélangés, `{total, items}` |
+| GET | `/coops/{coop_id}/habits?days=7&tz=Europe/Brussels` | Habitudes des poules (#27) : sorties et retours par jour et par heure |
 | POST | `/coops/{coop_id}/alerts/{alert_id}/ack` | Marquer une alerte comme lue |
 | GET | `/coops/{coop_id}/alerts/{alert_id}/image` | Photo associée à une alerte |
 | POST | `/coops/{coop_id}/command` | Commande manuelle `OPEN`, `CLOSE` ou `CALIBRATE` (+ `inside_count`) |
@@ -114,6 +123,19 @@ Alertes automatiques :
 | `DEVICE_OFFLINE` | aucune nouvelle depuis 15 min (vérifié chaque minute, une alerte par coupure) |
 | `LOW_BATTERY` | la batterie passe sous 20 % (une alerte par décharge, pas à chaque message) |
 
+## Historique et habitudes (#27)
+
+- `GET /history` réunit les tables `events` et `alerts` par un `UNION ALL`
+  (`repositories/history.py`) : la base trie et pagine la liste mélangée. `category` se répète
+  (`entries`, `exits`, `door`, `alerts` ; aucune = tout). `since` est inclus, `until` exclu ;
+  une date sans fuseau est lue en UTC. `total` compte tous les résultats, pour la pagination.
+- `GET /habits` calcule en Python (`services/habits.py`, `zoneinfo`) les sorties et retours
+  par jour et par heure dans le fuseau demandé. Le même code marche sous SQLite et PostgreSQL,
+  et un jour de changement d'heure (23 h ou 25 h) est compté juste. `exits_per_day` est la
+  moyenne sur les jours avec au moins un passage (`active_days`).
+- Paramètres invalides (dates inversées, catégorie ou fuseau inconnus, `days` hors 1..31,
+  `limit` > 100) : 422. Poulailler d'un autre compte : 404.
+
 ## Organisation du code
 
 ```
@@ -123,6 +145,7 @@ app/
 ├── db.py            # moteur SQLAlchemy async
 ├── models.py        # tables : users, devices, coops, events, alerts
 ├── new_coop.py      # python -m app.new_coop : enregistrer un nouveau Raspberry Pi
+├── seed.py          # python -m app.seed : données de démo (+ demo_history.py, demo/)
 ├── mqtt/            # topics, format des messages, client MQTT
 ├── schemas.py       # entrées / sorties de l'API (Pydantic)
 ├── security.py      # hachage Argon2id, codes d'appairage, jetons JWT

@@ -34,19 +34,21 @@ src/
 ├── auth/                  # jeton de connexion (localStorage), useAuth()
 ├── components/            # ProtectedRoute, en-tête, mise en page, champs de formulaire
 ├── dashboard/             # tableau de bord (porte, poules, historique, alertes), ajout d'un poulailler
-├── pages/                 # Connexion, Inscription, Accueil
+├── history/               # page Historique : journal filtrable, habitudes, graphique par heure
+├── pages/                 # Connexion, Inscription, Accueil, Historique
 ├── status/                # état du poulailler en temps réel (SSE)
 └── test/                  # configuration des tests et faux fetch
 ```
 
 ## Pages
 
-| Route                  | Page                                                               |
-| ---------------------- | ------------------------------------------------------------------ |
-| `/connexion`           | connexion                                                          |
-| `/inscription`         | création de compte                                                 |
-| `/`                    | accueil : tableau de bord du premier poulailler du compte (#26)    |
-| `/poulaillers/:coopId` | accueil sur ce poulailler (lien direct, sélecteur des poulaillers) |
+| Route                             | Page                                                               |
+| --------------------------------- | ------------------------------------------------------------------ |
+| `/connexion`                      | connexion                                                          |
+| `/inscription`                    | création de compte                                                 |
+| `/`                               | accueil : tableau de bord du premier poulailler du compte (#26)    |
+| `/poulaillers/:coopId`            | accueil sur ce poulailler (lien direct, sélecteur des poulaillers) |
+| `/poulaillers/:coopId/historique` | historique complet et habitudes des poules (#27)                   |
 
 L'accueil **est** le tableau de bord. Quand le compte a plusieurs poulaillers, des boutons en haut
 de page passent de l'un à l'autre. Un identifiant qui n'est pas dans la liste du compte affiche
@@ -71,6 +73,22 @@ Le tableau de bord regroupe :
 
 Tout se met à jour en direct par **un seul** flux SSE par poulailler : `useCoopStatus` reçoit
 les messages `status`, et transmet `event` et `alert` au tableau de bord.
+
+La page **Historique** (#27), ouverte par le lien « Tout l'historique et les habitudes des
+poules » sous la carte de la porte, a deux parties :
+
+- **Habitudes des poules** (`GET /habits`, 7 ou 30 jours) : heures moyennes de première sortie
+  et de dernier retour, sorties par jour, graphique des passages par heure (SVG fait main, sans
+  bibliothèque, avec un résumé pour les lecteurs d'écran et le tableau des valeurs) et tableau
+  jour par jour. Le fuseau du navigateur est envoyé à l'API.
+- **Journal** (`GET /history`) : passages, porte et alertes dans une seule liste groupée par
+  jour, filtres par type et par période (aujourd'hui, hier, 7 ou 30 jours, tout, dates au choix),
+  « Charger plus » par 50, photo des alertes. Les filtres sont dans l'URL
+  (`?categorie=entries&periode=hier`) : on peut recharger, mettre en favori et revenir en
+  arrière. Les périodes sont calculées en heure locale (`history/period.ts`).
+
+Les tests tournent à l'heure de Bruxelles (`test.env.TZ` dans `vite.config.ts`), pour que les
+périodes (« hier », changement d'heure) donnent le même résultat partout.
 
 Une page réservée aux utilisateurs connectés s'entoure de `<ProtectedRoute>`. Le jeton
 s'obtient avec `useAuth().token` et se passe aux fonctions de `api/client.ts`.
