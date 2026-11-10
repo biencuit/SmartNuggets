@@ -13,5 +13,8 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
     css: false,
+    // Fuseau fixe : les tests de périodes (« hier », changement d'heure) donnent le même
+    // résultat sur toutes les machines et en CI.
+    env: { TZ: "Europe/Brussels" },
   },
 });
