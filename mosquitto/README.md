@@ -4,7 +4,7 @@ Relie les Raspberry Pi des poulaillers (connectés à Internet par câble RJ45) 
 
 | Topic | Sens | Contenu |
 |---|---|---|
-| `smartnuggets/{coop_id}/telemetry` | Pi → API, QoS 1 | état de la porte, compteur, batterie, événement éventuel |
+| `smartnuggets/{coop_id}/telemetry` | Pi → API, QoS 1 | état de la porte, compteur, état de la caméra (`camera_ok`), batterie, événement éventuel |
 | `smartnuggets/{coop_id}/alerts` | Pi → API, QoS 1 | alerte (prédateur, porte bloquée…) + photo JPEG/WebP en base64 |
 | `smartnuggets/{coop_id}/status` | Pi → API, retenu | `online` à la connexion, `offline` via le Last Will |
 | `smartnuggets/{coop_id}/commands` | API → Pi, QoS 1 | `OPEN`, `CLOSE`, `CALIBRATE` ; ignorée par le Pi après 60 s |

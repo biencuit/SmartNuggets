@@ -4,7 +4,7 @@ Application web de l'éleveur : React 18, TypeScript, Vite, Tailwind CSS.
 
 ## Lancer en développement
 
-Node.js 20 ou plus récent. L'API doit tourner sur le port 8000 (voir `backend/README.md`) :
+Node.js 22, comme la CI (Vitest et jsdom ne marchent pas avec Node 20). L'API doit tourner sur le port 8000 (voir `backend/README.md`) :
 Vite relaie automatiquement les appels `/api` vers elle.
 
 ```bash
@@ -51,8 +51,9 @@ src/
 L'accueil **est** le tableau de bord. Quand le compte a plusieurs poulaillers, des boutons en haut
 de page passent de l'un à l'autre. Un identifiant qui n'est pas dans la liste du compte affiche
 un message, sans appel à l'API. Un compte sans poulailler voit le formulaire **Ajouter un
-poulailler** (`POST /coops`) : il faut l'identifiant du Raspberry Pi (par exemple `coop_01`)
-et son code d'appairage, écrits sur l'étiquette du boîtier. Le code ne marche qu'une fois ; si
+poulailler** (`POST /coops`) ; les autres l'ouvrent avec le bouton « + Ajouter un poulailler ».
+Il faut l'identifiant du Raspberry Pi (par exemple `coop_01`) et son code d'appairage, écrits
+sur l'étiquette du boîtier, ainsi qu'un nom et le nombre de poules. Le code ne marche qu'une fois ; si
 l'identifiant ou le code est faux, l'API répond 403 avec le même message dans tous les cas.
 
 Le tableau de bord regroupe :

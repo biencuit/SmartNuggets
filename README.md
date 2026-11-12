@@ -13,21 +13,20 @@ Concrètement :
 - un capteur de présence réveille une caméra quand quelque chose s'approche de la porte ;
 - la caméra reconnaît s'il s'agit d'une poule, et si c'est le cas la porte s'ouvre ;
 - chaque passage est compté, ce qui permet de savoir combien de poules sont dans le poulailler et combien sont dehors ;
-- si un renard (ou un autre prédateur) est détecté, la porte reste verrouillée et on reçoit une alerte ;
+- si un renard (ou un autre prédateur) est détecté, la porte reste verrouillée et on reçoit une alerte avec photo (la règle est codée ; le modèle actuel ne reconnaît que les poules, les prédateurs sont prévus au sprint 5 et se testent en mode démo) ;
 - une application permet de suivre tout ça : nombre de poules, historique, alertes, ouverture manuelle de la porte.
 
 ## Architecture
 
-Schéma provisoire, il sera détaillé dans le wiki.
+Schémas détaillés : page 8 du wiki (Architecture / Schémas).
 
 ```
-Capteur de présence -> Caméra -> Unité de traitement (détection)
-                                        |
-                  +---------------------+---------------------+
-                  |                     |                     |
-           Moteur de porte        Backend / API            Alertes
-                                        |
-                                   Application
+Poulailler (Raspberry Pi 5)                          VPS (smartnuggets.be)
+  PIR -> caméra -> détection (YOLO)                    Mosquitto (MQTT, TLS 8883)
+  barrières IR -> compteur          --- MQTT/TLS --->        |
+  moteur pas-à-pas -> porte                            API FastAPI -> PostgreSQL
+  file d'attente locale (SQLite)                             |  temps réel (SSE)
+                                                       Nginx (HTTPS 443) -> application web React
 ```
 
 ## Contenu du dépôt
@@ -36,7 +35,7 @@ Capteur de présence -> Caméra -> Unité de traitement (détection)
 |---|---|
 | `backend/` | API FastAPI + PostgreSQL (voir `backend/README.md`) |
 | `frontend/` | Application web React (voir `frontend/README.md`) |
-| `edge-coop/` | Code du Raspberry Pi du poulailler : liaison MQTT avec le serveur, prototype de la porte (`prototypes/`) |
+| `edge-coop/` | Code du Raspberry Pi du poulailler : programme principal (`coop_app`), logique de la porte et du comptage (`door_controller`), matériel et simulateurs (`hardware`), détection d'image avec YOLO (`ai_detector`), liaison MQTT (`mqtt_uplink`), scénarios du mode démo (`scenarios`) et premiers prototypes (`prototypes`) |
 | `mosquitto/` | Configuration du broker MQTT (TLS, comptes, droits) |
 | `nginx/` | Image du serveur web (site React + reverse proxy de l'API) |
 | `docs/` | Présentation, maquette et images |
