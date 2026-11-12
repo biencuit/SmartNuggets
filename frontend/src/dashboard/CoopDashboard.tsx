@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
 import { api, ApiError, type CoopAlert, type CoopEvent } from "../api/client";
 import { useAuth } from "../auth/useAuth";
@@ -146,11 +147,19 @@ export function CoopDashboard({ coopId, name }: { coopId: string; name: string }
       {loadError && !failed && <p className="text-red-700">{loadError}</p>}
       {status && (
         <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-          {events ? (
-            <DoorHistoryCard events={events} now={now} />
-          ) : (
-            !loadError && <p className="text-stone-500">Chargement de l'historique…</p>
-          )}
+          <div className="flex flex-col gap-2">
+            {events ? (
+              <DoorHistoryCard events={events} now={now} />
+            ) : (
+              !loadError && <p className="text-stone-500">Chargement de l'historique…</p>
+            )}
+            <Link
+              to={`/poulaillers/${encodeURIComponent(coopId)}/historique`}
+              className="self-start text-sm font-medium text-amber-800 underline underline-offset-2"
+            >
+              Tout l'historique et les habitudes des poules →
+            </Link>
+          </div>
           {alerts && token && (
             <AlertsCard
               alerts={alerts}

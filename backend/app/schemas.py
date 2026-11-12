@@ -1,7 +1,7 @@
 """Schémas Pydantic exposés par l'API (entrées validées, sorties documentées dans OpenAPI)."""
 
 import uuid
-from datetime import datetime, time
+from datetime import date, datetime, time
 from enum import StrEnum
 from typing import Annotated, Self
 
@@ -91,6 +91,71 @@ class AlertRead(ORMModel):
     image_url: str | None
     acknowledged: bool
     created_at: UtcDatetime
+
+
+class HistoryCategory(StrEnum):
+    """Filtres de la page Historique (plusieurs à la fois ; aucun = tout)."""
+
+    ENTRIES = "entries"  # HEN_ENTRY
+    EXITS = "exits"  # HEN_EXIT
+    DOOR = "door"  # DOOR_OPEN, DOOR_CLOSE, OBSTACLE
+    ALERTS = "alerts"  # toutes les alertes
+
+
+class HistoryKind(StrEnum):
+    EVENT = "event"
+    ALERT = "alert"
+
+
+class HistoryItem(BaseModel):
+    """Une ligne de l'historique : un événement (passage, porte) OU une alerte."""
+
+    kind: HistoryKind
+    id: int = Field(description="Identifiant dans la table d'origine (events ou alerts)")
+    type: EventType | AlertType = Field(description="event_type ou alert_type")
+    occurred_at: UtcDatetime = Field(description="Date de l'événement ou de l'alerte (UTC)")
+    trigger_source: TriggerSource | None = Field(default=None, description="Événements seulement")
+    inside_count_after: int | None = Field(default=None, description="Événements seulement")
+    severity: Severity | None = Field(default=None, description="Alertes seulement")
+    image_url: str | None = Field(default=None, description="Alertes avec photo seulement")
+    acknowledged: bool | None = Field(default=None, description="Alertes seulement")
+
+
+class HistoryPage(BaseModel):
+    total: int = Field(description="Nombre total de résultats pour ces filtres (toutes pages)")
+    items: list[HistoryItem]
+
+
+class HabitDay(BaseModel):
+    """Passages d'une journée, en heure locale."""
+
+    day: date
+    exits: int
+    entries: int
+    first_exit: time | None = Field(description="Heure de la première sortie (heure locale)")
+    last_entry: time | None = Field(description="Heure du dernier retour (heure locale)")
+
+
+class HabitHour(BaseModel):
+    """Passages pendant une heure de la journée (0 = de minuit à 1 h), sur toute la période."""
+
+    hour: int = Field(ge=0, le=23)
+    exits: int
+    entries: int
+
+
+class HabitsRead(BaseModel):
+    """Habitudes des poules sur les `days` derniers jours (aujourd'hui compris)."""
+
+    timezone: str
+    days: list[HabitDay] = Field(description="Du plus ancien au plus récent, jours vides compris")
+    hours: list[HabitHour] = Field(description="Toujours 24 éléments, de 0 h à 23 h")
+    average_first_exit: time | None = Field(description="Moyenne des premières sorties")
+    average_last_entry: time | None = Field(description="Moyenne des derniers retours")
+    exits_per_day: float = Field(description="Sorties par jour, sur les jours avec des passages")
+    active_days: int = Field(description="Jours avec au moins un passage")
+    total_exits: int
+    total_entries: int
 
 
 class CommandAction(StrEnum):

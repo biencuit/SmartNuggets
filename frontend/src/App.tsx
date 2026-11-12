@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { HistoryPage } from "./pages/HistoryPage";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
@@ -36,6 +37,15 @@ export function App() {
         element={
           <ProtectedRoute>
             <HomePage />
+          </ProtectedRoute>
+        }
+      />
+      {/* Historique complet et habitudes des poules (#27). */}
+      <Route
+        path="/poulaillers/:coopId/historique"
+        element={
+          <ProtectedRoute>
+            <HistoryPage />
           </ProtectedRoute>
         }
       />
