@@ -6,11 +6,13 @@ et la détection sont pilotés par un scénario. Format du scénario (JSON) :
     {"steps": [
       {"at": 5,  "do": "hen",      "say": "Une poule se présente devant la porte"},
       {"at": 9,  "do": "exit",     "count": 3},
-      {"at": 20, "do": "predator", "name": "renard"},
+      {"at": 20, "do": "predator", "name": "renard", "image": "renard.jpg"},
       {"at": 60, "do": "evening"}
     ]}
 
 `at` : secondes depuis le début. Actions : hen, predator, exit, enter, evening, morning.
+`image` (hen, predator) : photo JPEG que la caméra simulée prend à ce moment, chemin relatif
+au fichier du scénario. C'est elle qui part avec l'alerte prédateur (#23).
 """
 
 import json
@@ -22,7 +24,7 @@ from typing import Any
 
 from ai_detector import Label, ScriptedDetector
 from coop_app.devices import Devices
-from hardware.mock import FakeSwitch
+from hardware.mock import TINY_JPEG, FakeCamera, FakeSwitch
 
 # Une poule met 4 lectures (extérieure, les deux, intérieure, aucune) pour passer.
 CROSSING_IN = [(True, False), (True, True), (False, True), (False, False)]
@@ -38,15 +40,26 @@ class Step:
     count: int = 1
     name: str = ""
     confidence: float = 0.9
+    image: str = ""
 
     def __post_init__(self) -> None:
         if self.do not in ACTIONS:
             raise ValueError(f"Action inconnue dans le scénario : {self.do!r}")
+        if self.image and self.do not in ("hen", "predator"):
+            raise ValueError(f"Une image n'a de sens que pour hen et predator, pas {self.do!r}")
 
 
 def load_scenario(path: str | Path) -> list[Step]:
-    data = json.loads(Path(path).read_text(encoding="utf-8"))
-    return sorted((Step(**step) for step in data["steps"]), key=lambda s: s.at)
+    path = Path(path)
+    data = json.loads(path.read_text(encoding="utf-8"))
+    steps = [Step(**step) for step in data["steps"]]
+    for step in steps:
+        if step.image:
+            image = (path.parent / step.image).resolve()
+            if not image.is_file():
+                raise FileNotFoundError(f"Image du scénario introuvable : {image}")
+            step.image = str(image)
+    return sorted(steps, key=lambda s: s.at)
 
 
 @dataclass
@@ -91,6 +104,7 @@ class DemoScenario:
             self.say(f"[démo] {step.say}")
         if step.do in ("hen", "predator"):
             label = Label.HEN if step.do == "hen" else Label.PREDATOR
+            self._photo(step.image)
             self.detector.show(label, step.confidence, step.name or str(label))
             self._pulse(self._motion)
         elif step.do in ("exit", "enter"):
@@ -102,6 +116,15 @@ class DemoScenario:
             self.time_offset += self._until_evening()
         elif step.do == "morning":
             self.time_offset = timedelta(0)
+
+    def _photo(self, image: str) -> None:
+        """La caméra simulée prend la photo de l'étape (un pixel gris s'il n'y en a pas).
+
+        Avec une vraie vidéo (`DEMO_CAMERA=video:…`), c'est elle qui fournit la photo.
+        """
+        camera = self.devices.camera
+        if isinstance(camera, FakeCamera):
+            camera.jpeg = Path(image).read_bytes() if image else TINY_JPEG
 
     def _pulse(self, switch: FakeSwitch) -> None:
         switch.active = True
