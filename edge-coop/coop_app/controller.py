@@ -2,7 +2,8 @@
 
 Règles (dans l'ordre de priorité) :
 1. Prédateur vu → la porte se ferme si elle est ouverte, et refuse de s'ouvrir pendant
-   `predator_lock_s`, même sur commande de l'application. Alerte avec photo. (#22, #23)
+   `predator_lock_s`, même sur commande de l'application. Alerte avec photo, réduite
+   à moins de 200 Ko (`coop_app.photo`). (#22, #23)
 2. Nuit (hors de la plage horaire) → la porte se ferme et ne s'ouvre plus seule. (#14)
 3. Poule vue devant la porte, de jour → la porte s'ouvre ; elle se referme quand plus
    aucune poule n'est passée depuis `auto_close_after_s`. (#10)
@@ -20,6 +21,7 @@ from typing import Any, Protocol
 from ai_detector import Detector, Label, best
 from coop_app.config import AppConfig
 from coop_app.devices import Devices
+from coop_app.photo import reduce_jpeg
 from door_controller import Door, DoorState, MoveResult, Passage, PassageCounter, Source
 from hardware.interfaces import Switch
 
@@ -151,8 +153,10 @@ class CoopController:
     def _on_predator(self, confidence: float, jpeg: bytes, name: str) -> None:
         logger.warning("Prédateur détecté (%s, %.2f) : porte verrouillée", name, confidence)
         self._predator_until = self.clock() + self.config.predator_lock_s
+        # L'alerte part avant la fermeture (qui prend plusieurs secondes), même sans photo.
+        photo = reduce_jpeg(jpeg, self.config.photo_max_bytes)
         self.uplink.send_alert(
-            "PREDATOR_DETECTED", "CRITICAL", ai_confidence=confidence, image=jpeg
+            "PREDATOR_DETECTED", "CRITICAL", ai_confidence=confidence, image=photo
         )
         if self.door.state != DoorState.CLOSED:
             self._close(Source.FAILSAFE)

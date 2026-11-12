@@ -29,7 +29,7 @@ from app.schemas import (
     HistoryPage,
 )
 from app.services.habits import DEFAULT_TIMEZONE, UnknownTimezoneError, load_timezone
-from app.services.sse import event_stream
+from app.services.sse import event_stream, format_sse
 from app.timeutils import ensure_utc
 
 router = APIRouter(prefix="/api/v1/coops", tags=["poulaillers"])
@@ -219,8 +219,9 @@ async def get_alert_image(
     response_class=StreamingResponse,
     summary="Flux temps réel (Server-Sent Events)",
     description=(
-        "Événements `status` (état complet du poulailler), `event` (passage, porte) et "
-        "`alert`. Un commentaire `: ping` est envoyé toutes les 15 s. EventSource ne pouvant "
+        "Événements `status` (état complet du poulailler, envoyé aussi dès la connexion), "
+        "`event` (passage, porte) et `alert`. Sans autre message, un événement `ping` part "
+        "toutes les 15 s : la page sait ainsi que le flux est vivant. EventSource ne pouvant "
         "pas envoyer d'en-tête, le jeton peut être passé en paramètre `?token=`."
     ),
 )
@@ -236,6 +237,12 @@ async def stream(
 
     async def body() -> AsyncIterator[str]:
         async with broadcaster.subscribe(coop_id) as queue:
+            # L'état actuel part en premier : après une coupure, EventSource se reconnecte et
+            # la page se recale aussitôt, sans attendre le prochain message du Pi. On s'abonne
+            # avant de le lire : un passage arrivé entre les deux est déjà dans la file.
+            current = await service.get_status(coop_id)
+            await service.session.close()
+            yield format_sse("status", current.model_dump(mode="json"))
             async for chunk in event_stream(queue, request.is_disconnected):
                 yield chunk
 

@@ -132,6 +132,7 @@ export function CoopDashboard({ coopId, name }: { coopId: string; name: string }
             <DoorCard
               status={status}
               predator={recentPredator(alerts ?? [], now)}
+              imageUrl={token ? (alertId) => api.alertImageUrl(token, coopId, alertId) : undefined}
               onCommand={(action) => sendCommand(action)}
             />
             <HenCountCard

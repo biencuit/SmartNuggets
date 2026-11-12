@@ -2,8 +2,13 @@
 export class FakeEventSource {
   static instances: FakeEventSource[] = [];
 
+  static readonly CONNECTING = 0;
+  static readonly OPEN = 1;
+  static readonly CLOSED = 2;
+
   readonly url: string;
   closed = false;
+  readyState: number = FakeEventSource.CONNECTING;
   private readonly listeners = new Map<string, Set<(event: Event) => void>>();
 
   constructor(url: string) {
@@ -19,9 +24,19 @@ export class FakeEventSource {
 
   close(): void {
     this.closed = true;
+    this.readyState = FakeEventSource.CLOSED;
+  }
+
+  /** Le navigateur abandonne le flux (par exemple une réponse 502) : il ne réessaiera plus. */
+  fail(): void {
+    this.readyState = FakeEventSource.CLOSED;
+    this.emit("error");
   }
 
   emit(type: string, data?: unknown): void {
+    if (type === "open") {
+      this.readyState = FakeEventSource.OPEN;
+    }
     const event =
       data === undefined ? new Event(type) : new MessageEvent(type, { data: JSON.stringify(data) });
     for (const listener of this.listeners.get(type) ?? []) {

@@ -87,6 +87,36 @@ describe("CoopDashboard - tableau de bord du poulailler, sur l'accueil", () => {
     expect(screen.getByText("Porte bloquée")).toBeInTheDocument();
   });
 
+  it("met à jour le compteur de poules en direct, sans recharger la page", async () => {
+    const calls = setup({ status: { inside_count: 7, outside_count: 3 } });
+
+    const hens = await screen.findByRole("region", { name: "Poules" });
+    expect(within(hens).getByText("10 au total")).toBeInTheDocument();
+    expect(within(hens).getByText("7")).toBeInTheDocument();
+    expect(within(hens).getByText("3")).toBeInTheDocument();
+
+    // Une poule entre : le serveur pousse le nouvel état, puis le passage.
+    const stream = FakeEventSource.instances[0];
+    act(() => {
+      stream?.emit("status", makeStatus({ inside_count: 8, outside_count: 2 }));
+      stream?.emit("event", makeEvent({ id: 2, event_type: "HEN_ENTRY", inside_count_after: 8 }));
+    });
+    expect(within(hens).getByText("8")).toBeInTheDocument();
+    expect(within(hens).getByText("2")).toBeInTheDocument();
+
+    // Coupure puis reconnexion : le serveur renvoie l'état actuel dès la connexion.
+    act(() => {
+      stream?.emit("error");
+      stream?.emit("open");
+      stream?.emit("status", makeStatus({ inside_count: 9, outside_count: 1 }));
+    });
+    expect(within(hens).getByText("9")).toBeInTheDocument();
+    expect(within(hens).getByText("1")).toBeInTheDocument();
+
+    // Tout est arrivé par le flux : l'état n'a été chargé qu'une fois.
+    expect(calls.filter((call) => call.url === `${BASE}/status`)).toHaveLength(1);
+  });
+
   it("envoie la commande d'ouverture puis attend la réponse du poulailler", async () => {
     const calls = setup({ status: { door_state: "CLOSED" } });
     const user = userEvent.setup();
@@ -231,5 +261,30 @@ describe("CoopDashboard - tableau de bord du poulailler, sur l'accueil", () => {
     });
     expect(screen.getAllByText(/introuvable/)).toHaveLength(1);
     expect(screen.queryByText("Chargement du poulailler…")).not.toBeInTheDocument();
+  });
+
+  it("montre tout de suite la photo du prédateur reçue par le flux (#23)", async () => {
+    setup({ status: { door_state: "OPEN" }, alerts: [] });
+    await screen.findByText("Aucune alerte à traiter.");
+    const door = screen.getByRole("region", { name: "Porte" });
+    expect(within(door).queryByRole("img")).not.toBeInTheDocument();
+
+    act(() => {
+      FakeEventSource.instances[0]?.emit(
+        "alert",
+        makeAlert({
+          id: 44,
+          alert_type: "PREDATOR_DETECTED",
+          severity: "CRITICAL",
+          ai_confidence: 0.87,
+          image_url: `${BASE}/alerts/44/image`,
+          created_at: new Date().toISOString(),
+        }),
+      );
+    });
+
+    // Dans le bandeau de la porte, sans cliquer sur « Voir la photo ».
+    const photo = within(door).getByRole("img", { name: /^Photo du prédateur prise à / });
+    expect(photo).toHaveAttribute("src", `${BASE}/alerts/44/image?token=jeton`);
   });
 });

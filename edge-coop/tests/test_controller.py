@@ -137,6 +137,32 @@ def test_predateur_alerte_avec_photo_et_porte_verrouillee(env):
     assert controller.door.state == DoorState.OPEN
 
 
+def predator_alert(uplink):
+    return next(fields for kind, name, fields in uplink.sent if name == "PREDATOR_DETECTED")
+
+
+def test_predateur_photo_lourde_reduite_avant_l_envoi(env):
+    from tests.test_photo import big_jpeg
+
+    controller, devices, detector, uplink, clock = env
+    devices.camera.jpeg = big_jpeg()
+    detector.show(Label.PREDATOR, 0.9, "renard")
+    mouvement(controller, devices)
+    photo = predator_alert(uplink)["image"]
+    assert len(photo) <= 200_000 and photo.startswith(b"\xff\xd8")
+
+
+def test_predateur_photo_illisible_l_alerte_part_quand_meme(env):
+    controller, devices, detector, uplink, clock = env
+    detector.show(Label.HEN, 0.9)
+    mouvement(controller, devices)
+    devices.camera.jpeg = b"image abimee"
+    detector.show(Label.PREDATOR, 0.8, "renard")
+    mouvement(controller, devices)
+    assert predator_alert(uplink)["image"] is None
+    assert controller.door.state == DoorState.CLOSED
+
+
 def test_la_nuit_la_porte_se_ferme_et_ne_s_ouvre_plus_seule(env):
     controller, devices, detector, uplink, clock = env
     controller.on_command("OPEN")
@@ -220,9 +246,16 @@ def test_les_commandes_mqtt_passent_par_la_boucle_principale(env):
 
 def test_configuration_depuis_l_environnement():
     config = AppConfig.from_env(
-        {"HARDWARE": "pi", "MOTOR_PINS": "1,2,3,4", "CLOSE_AT": "20:30", "HEN_THRESHOLD": "0.8"}
+        {
+            "HARDWARE": "pi",
+            "MOTOR_PINS": "1,2,3,4",
+            "CLOSE_AT": "20:30",
+            "HEN_THRESHOLD": "0.8",
+            "PHOTO_MAX_BYTES": "150000",
+        }
     )
     assert config.hardware == "pi" and config.motor_pins == (1, 2, 3, 4)
+    assert config.photo_max_bytes == 150_000
     assert config.schedule.close_at.hour == 20 and config.hen_threshold == 0.8
     with pytest.raises(ValueError):
         build_devices(replace(config, hardware="arduino"))

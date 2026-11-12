@@ -4,7 +4,7 @@ Application web de l'éleveur : React 18, TypeScript, Vite, Tailwind CSS.
 
 ## Lancer en développement
 
-Node.js 20 ou plus récent. L'API doit tourner sur le port 8000 (voir `backend/README.md`) :
+Node.js 22, comme la CI (Vitest et jsdom ne marchent pas avec Node 20). L'API doit tourner sur le port 8000 (voir `backend/README.md`) :
 Vite relaie automatiquement les appels `/api` vers elle.
 
 ```bash
@@ -53,9 +53,15 @@ src/
 L'accueil **est** le tableau de bord. Quand le compte a plusieurs poulaillers, des boutons en haut
 de page passent de l'un à l'autre. Un identifiant qui n'est pas dans la liste du compte affiche
 un message, sans appel à l'API. Un compte sans poulailler voit le formulaire **Ajouter un
-poulailler** (`POST /coops`) : il faut l'identifiant du Raspberry Pi (par exemple `coop_01`)
-et son code d'appairage, écrits sur l'étiquette du boîtier. Le code ne marche qu'une fois ; si
+poulailler** (`POST /coops`) ; les autres l'ouvrent avec le bouton « + Ajouter un poulailler ».
+Il faut l'identifiant du Raspberry Pi (par exemple `coop_01`) et son code d'appairage, écrits
+sur l'étiquette du boîtier, ainsi qu'un nom et le nombre de poules. Le code ne marche qu'une fois ; si
 l'identifiant ou le code est faux, l'API répond 403 avec le même message dans tous les cas.
+
+Données personnelles (RGPD, #64) : `/compte` (**Mon compte**, lien dans le bandeau) fait
+télécharger ses données en JSON et supprimer son compte (mot de passe redemandé) ;
+`/vie-privee` (publique, lien sous la connexion et l'inscription) dit ce qui est gardé,
+pourquoi, combien de temps et où.
 
 Le tableau de bord regroupe :
 
@@ -72,7 +78,10 @@ Le tableau de bord regroupe :
 - **Alertes** : non lues ou toutes, marquer comme lue, photo de l'alerte.
 
 Tout se met à jour en direct par **un seul** flux SSE par poulailler : `useCoopStatus` reçoit
-les messages `status`, et transmet `event` et `alert` au tableau de bord.
+les messages `status`, et transmet `event` et `alert` au tableau de bord. Si le flux est
+abandonné (502 pendant un déploiement) ou reste muet plus de 40 s (le serveur envoie un `ping`
+toutes les 15 s), le hook le rouvre lui-même. Le serveur renvoie l'état complet à chaque
+connexion : le compteur de poules se recale sans recharger la page.
 
 La page **Historique** (#27), ouverte par le lien « Tout l'historique et les habitudes des
 poules » sous la carte de la porte, a deux parties :

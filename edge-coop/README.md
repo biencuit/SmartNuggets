@@ -8,6 +8,8 @@ MQTT du VPS, en TLS (port 8883). Topics et droits : voir `mosquitto/README.md`.
 **Installer un nouveau Pi** : sur le VPS, `bash scripts/new-coop.sh coop_02` affiche le `.env`
 à copier sur le Pi (compte MQTT et mot de passe) et le code d'appairage à coller sur le
 boîtier. L'éleveur tape ce code dans l'application pour ajouter le poulailler à son compte.
+Le programme lit ses réglages dans les variables d'environnement, pas dans le fichier : les
+charger avant de le lancer (`set -a; . ./.env; set +a; python -m coop_app`).
 
 - **File d'attente locale** : chaque message passe par une base SQLite (`Outbox`). Si Internet
   ou le serveur tombe, les messages s'accumulent et repartent dans l'ordre dès le retour de
@@ -47,7 +49,7 @@ cd edge-coop
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 pytest --cov
-ruff check . && black --check . && bandit -r mqtt_uplink
+ruff check . && black --check . && bandit -r mqtt_uplink hardware ai_detector door_controller coop_app
 ```
 
 ## Couche matérielle (`hardware/`)
@@ -99,8 +101,9 @@ catégorie (`hen`, `predator`, `other`), une confiance entre 0 et 1 et un nom li
   python prototypes/detection_poule.py chemin/vers/images   # verdict et temps par image
   ```
 
-  Limites : n'importe quel oiseau est pris pour une poule, et le modèle nano rate certaines
-  photos. Un fine-tuning sur nos propres images de poules corrigerait les deux.
+  Limites : n'importe quel oiseau est pris pour une poule, le modèle nano rate certaines
+  photos, et **aucun prédateur n'est reconnu** (prévu avec US-SECU-1). Un fine-tuning sur nos
+  propres images corrigerait les deux premiers points.
 
 ## Programme du poulailler (`coop_app/`, `door_controller/`)
 
@@ -109,6 +112,9 @@ l'ordre de priorité :
 
 1. **Prédateur vu** : la porte se ferme si elle est ouverte et refuse de s'ouvrir pendant
    `PREDATOR_LOCK_S` (même sur commande de l'application). Alerte avec photo.
+   La photo est réduite avant l'envoi (`coop_app/photo.py`) : 640 px de côté au plus et
+   moins de `PHOTO_MAX_BYTES` (200 Ko par défaut). Si elle est illisible ou impossible à
+   réduire, l'alerte part quand même, sans photo.
 2. **Nuit** (hors de `OPEN_FROM`-`CLOSE_AT`) : la porte se ferme et ne s'ouvre plus seule.
 3. **Poule vue** (le PIR réveille la caméra) : la porte s'ouvre ; elle se referme quand
    aucune poule n'est passée depuis `AUTO_CLOSE_AFTER_S`.
@@ -131,6 +137,11 @@ racine) : le scénario pilote les capteurs simulés et le détecteur simulé, le
 programme est le vrai. Actions possibles : `hen`, `predator`, `exit`, `enter` (avec
 `count`), `evening` (avance l'horloge jusqu'à `CLOSE_AT`), `morning`. Le test
 `tests/test_demo.py` rejoue ce scénario en accéléré à chaque CI.
+
+Une étape `hen` ou `predator` peut donner une `image` (JPEG, chemin relatif au scénario) :
+la caméra simulée la prend à ce moment-là. Dans `journee.json`, le renard envoie ainsi
+`scenarios/renard.jpg` (une illustration) avec son alerte, et l'application l'affiche dans
+la carte Porte.
 
 ## Prototype de la porte
 
