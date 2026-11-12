@@ -232,4 +232,29 @@ describe("CoopDashboard - tableau de bord du poulailler, sur l'accueil", () => {
     expect(screen.getAllByText(/introuvable/)).toHaveLength(1);
     expect(screen.queryByText("Chargement du poulailler…")).not.toBeInTheDocument();
   });
+
+  it("montre tout de suite la photo du prédateur reçue par le flux (#23)", async () => {
+    setup({ status: { door_state: "OPEN" }, alerts: [] });
+    await screen.findByText("Aucune alerte à traiter.");
+    const door = screen.getByRole("region", { name: "Porte" });
+    expect(within(door).queryByRole("img")).not.toBeInTheDocument();
+
+    act(() => {
+      FakeEventSource.instances[0]?.emit(
+        "alert",
+        makeAlert({
+          id: 44,
+          alert_type: "PREDATOR_DETECTED",
+          severity: "CRITICAL",
+          ai_confidence: 0.87,
+          image_url: `${BASE}/alerts/44/image`,
+          created_at: new Date().toISOString(),
+        }),
+      );
+    });
+
+    // Dans le bandeau de la porte, sans cliquer sur « Voir la photo ».
+    const photo = within(door).getByRole("img", { name: /^Photo du prédateur prise à / });
+    expect(photo).toHaveAttribute("src", `${BASE}/alerts/44/image?token=jeton`);
+  });
 });
