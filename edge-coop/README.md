@@ -8,6 +8,8 @@ MQTT du VPS, en TLS (port 8883). Topics et droits : voir `mosquitto/README.md`.
 **Installer un nouveau Pi** : sur le VPS, `bash scripts/new-coop.sh coop_02` affiche le `.env`
 à copier sur le Pi (compte MQTT et mot de passe) et le code d'appairage à coller sur le
 boîtier. L'éleveur tape ce code dans l'application pour ajouter le poulailler à son compte.
+Le programme lit ses réglages dans les variables d'environnement, pas dans le fichier : les
+charger avant de le lancer (`set -a; . ./.env; set +a; python -m coop_app`).
 
 - **File d'attente locale** : chaque message passe par une base SQLite (`Outbox`). Si Internet
   ou le serveur tombe, les messages s'accumulent et repartent dans l'ordre dès le retour de
@@ -47,7 +49,7 @@ cd edge-coop
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 pytest --cov
-ruff check . && black --check . && bandit -r mqtt_uplink
+ruff check . && black --check . && bandit -r mqtt_uplink hardware ai_detector door_controller coop_app
 ```
 
 ## Couche matérielle (`hardware/`)
@@ -99,8 +101,9 @@ catégorie (`hen`, `predator`, `other`), une confiance entre 0 et 1 et un nom li
   python prototypes/detection_poule.py chemin/vers/images   # verdict et temps par image
   ```
 
-  Limites : n'importe quel oiseau est pris pour une poule, et le modèle nano rate certaines
-  photos. Un fine-tuning sur nos propres images de poules corrigerait les deux.
+  Limites : n'importe quel oiseau est pris pour une poule, le modèle nano rate certaines
+  photos, et **aucun prédateur n'est reconnu** (prévu avec US-SECU-1). Un fine-tuning sur nos
+  propres images corrigerait les deux premiers points.
 
 ## Programme du poulailler (`coop_app/`, `door_controller/`)
 

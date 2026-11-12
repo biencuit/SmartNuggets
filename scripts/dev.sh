@@ -6,7 +6,9 @@
 #   bash scripts/dev.sh --sans-pi    sans le faux Pi (pour brancher le vrai)
 #   bash scripts/dev.sh --sans-web   sans l'application web
 #   bash scripts/dev.sh --reset      repartir d'une base de démo neuve
-#   bash scripts/dev.sh --demo       le vrai programme du Pi rejoue une journée (scénario)
+#   bash scripts/dev.sh --demo       le vrai programme du Pi rejoue une journée (scénario,
+#                                    implique --reset)
+#   bash scripts/dev.sh --help       cette aide
 #
 # Prévu pour Linux / WSL. Il faut Python 3.11+, Mosquitto (sudo apt install mosquitto)
 # et Node.js (celui de Windows convient depuis WSL). Tout ce qui est généré (base SQLite,

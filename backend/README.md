@@ -59,7 +59,8 @@ uvicorn app.main:create_app --factory --reload
   deviner quels identifiants existent.
 - Un nouveau Pi s'enregistre avec `python -m app.new_coop coop_02`, qui affiche son code
   (sur le VPS : `scripts/new-coop.sh`, qui crée aussi le compte MQTT). Code perdu avant
-  d'avoir servi : `python -m app.new_coop coop_02 --new-code`.
+  d'avoir servi : `python -m app.new_coop coop_02 --new-code` (sur le VPS :
+  `bash scripts/new-coop.sh coop_02 --code-only`).
 - `/stream` et `/image` acceptent aussi `?token=<jeton>`, parce qu'`EventSource` et `<img>`
   ne peuvent pas envoyer d'en-tête.
 - En production, `JWT_SECRET_KEY` doit être définie. Sans elle, une clé temporaire est générée
@@ -104,7 +105,9 @@ Sans `MQTT_ENABLED`, l'API fonctionne seule et les commandes sont simplement gar
 
 - `online` : vrai si le Pi est connecté au broker (topic `status`, Last Will) **et** s'il a
   donné des nouvelles depuis moins de `DEVICE_OFFLINE_AFTER_S` (15 min par défaut) ;
-- `battery` (%) et `camera_ok`, envoyés par le Pi dans sa télémétrie ;
+- `camera_ok`, envoyé par le Pi dans sa télémétrie ; `battery` (%) aussi, mais le programme du
+  Pi n'en envoie pas encore (pas de capteur de batterie) : seule la touche `b` de
+  `scripts/dev.sh` en publie ;
 - `last_seen_at` : heure du dernier message reçu.
 
 Alertes automatiques :
