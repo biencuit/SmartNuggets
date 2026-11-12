@@ -112,6 +112,9 @@ l'ordre de priorité :
 
 1. **Prédateur vu** : la porte se ferme si elle est ouverte et refuse de s'ouvrir pendant
    `PREDATOR_LOCK_S` (même sur commande de l'application). Alerte avec photo.
+   La photo est réduite avant l'envoi (`coop_app/photo.py`) : 640 px de côté au plus et
+   moins de `PHOTO_MAX_BYTES` (200 Ko par défaut). Si elle est illisible ou impossible à
+   réduire, l'alerte part quand même, sans photo.
 2. **Nuit** (hors de `OPEN_FROM`-`CLOSE_AT`) : la porte se ferme et ne s'ouvre plus seule.
 3. **Poule vue** (le PIR réveille la caméra) : la porte s'ouvre ; elle se referme quand
    aucune poule n'est passée depuis `AUTO_CLOSE_AFTER_S`.
@@ -134,6 +137,11 @@ racine) : le scénario pilote les capteurs simulés et le détecteur simulé, le
 programme est le vrai. Actions possibles : `hen`, `predator`, `exit`, `enter` (avec
 `count`), `evening` (avance l'horloge jusqu'à `CLOSE_AT`), `morning`. Le test
 `tests/test_demo.py` rejoue ce scénario en accéléré à chaque CI.
+
+Une étape `hen` ou `predator` peut donner une `image` (JPEG, chemin relatif au scénario) :
+la caméra simulée la prend à ce moment-là. Dans `journee.json`, le renard envoie ainsi
+`scenarios/renard.jpg` (une illustration) avec son alerte, et l'application l'affiche dans
+la carte Porte.
 
 ## Prototype de la porte
 

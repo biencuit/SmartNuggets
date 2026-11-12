@@ -26,6 +26,7 @@ class AppConfig:
     hen_threshold: float = 0.7
     predator_threshold: float = 0.5
     predator_lock_s: float = 300.0  # porte verrouillée après un prédateur
+    photo_max_bytes: int = 200_000  # photo envoyée avec l'alerte prédateur
     auto_close_after_s: float = 60.0  # refermer quand plus aucune poule ne passe
     heartbeat_s: float = 60.0
     poll_s: float = 0.05  # lecture des capteurs (20 fois par seconde)
@@ -58,6 +59,7 @@ class AppConfig:
             hen_threshold=float(get("HEN_THRESHOLD", d.hen_threshold)),
             predator_threshold=float(get("PREDATOR_THRESHOLD", d.predator_threshold)),
             predator_lock_s=float(get("PREDATOR_LOCK_S", d.predator_lock_s)),
+            photo_max_bytes=int(get("PHOTO_MAX_BYTES", d.photo_max_bytes)),
             auto_close_after_s=float(get("AUTO_CLOSE_AFTER_S", d.auto_close_after_s)),
             heartbeat_s=float(get("HEARTBEAT_S", d.heartbeat_s)),
             motor_pins=_pins(get("MOTOR_PINS", "5,6,13,19")),
