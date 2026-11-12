@@ -30,7 +30,7 @@ export function mockFetch(routes: Record<string, Handler>) {
     }
     const { status = 200, body: responseBody } = handler(call);
     return Promise.resolve(
-      new Response(responseBody === undefined ? "" : JSON.stringify(responseBody), { status }),
+      new Response(responseBody === undefined ? null : JSON.stringify(responseBody), { status }),
     );
   });
   vi.stubGlobal("fetch", fetchMock);

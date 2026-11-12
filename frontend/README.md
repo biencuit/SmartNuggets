@@ -56,6 +56,11 @@ Il faut l'identifiant du Raspberry Pi (par exemple `coop_01`) et son code d'appa
 sur l'étiquette du boîtier, ainsi qu'un nom et le nombre de poules. Le code ne marche qu'une fois ; si
 l'identifiant ou le code est faux, l'API répond 403 avec le même message dans tous les cas.
 
+Données personnelles (RGPD, #64) : `/compte` (**Mon compte**, lien dans le bandeau) fait
+télécharger ses données en JSON et supprimer son compte (mot de passe redemandé) ;
+`/vie-privee` (publique, lien sous la connexion et l'inscription) dit ce qui est gardé,
+pourquoi, combien de temps et où.
+
 Le tableau de bord regroupe :
 
 - **Dernier événement** : sous le nom du poulailler, le dernier passage ou mouvement de porte,

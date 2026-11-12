@@ -66,6 +66,16 @@ uvicorn app.main:create_app --factory --reload
 - En production, `JWT_SECRET_KEY` doit être définie. Sans elle, une clé temporaire est générée
   et les sessions sont perdues à chaque redémarrage.
 
+## Données personnelles (RGPD)
+
+- **Suppression du compte** (`app/services/account_service.py`) : passages, alertes, photos,
+  poulaillers puis compte, supprimés un par un (SQLite n'applique pas les `ON DELETE
+  CASCADE`). Le Raspberry Pi est libéré : `bash scripts/new-coop.sh <id> --code-only` lui
+  donne un nouveau code pour un autre compte.
+- **Durées de conservation** (`app/services/retention.py`, une fois par jour) : photo
+  d'alerte supprimée après `PHOTO_RETENTION_DAYS` (30 jours, l'alerte reste) ; passages et
+  alertes supprimés après `DATA_RETENTION_DAYS` (365 jours).
+
 ## Endpoints (préfixe `/api/v1`)
 
 | Méthode | Route | Description |
@@ -74,6 +84,8 @@ uvicorn app.main:create_app --factory --reload
 | POST | `/auth/register` | Créer un compte (public) |
 | POST | `/auth/login` | Se connecter, renvoie un jeton (public) |
 | GET | `/auth/me` | Profil de l'utilisateur connecté |
+| GET | `/auth/me/export` | Toutes mes données en JSON (RGPD, droit à la portabilité) |
+| DELETE | `/auth/me` | Supprimer mon compte et tout ce qui lui appartient ; corps `{"password"}`, 401 si faux |
 | GET | `/coops` | Poulaillers de l'utilisateur connecté |
 | POST | `/coops` | Ajouter un poulailler à son compte : `id` du Raspberry Pi + `claim_code` (code d'appairage) |
 | GET | `/coops/{coop_id}/status` | État actuel : porte, compteurs, batterie, dernière communication |

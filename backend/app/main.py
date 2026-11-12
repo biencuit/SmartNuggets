@@ -18,6 +18,7 @@ from app.routers import auth, coops, health
 from app.services.broadcaster import Broadcaster
 from app.services.commands import InMemoryCommandPublisher
 from app.services.health import DeviceWatchdog
+from app.services.retention import RetentionJob
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +40,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             settings.device_offline_after_s,
             settings.health_check_interval_s,
         )
-        tasks: list[asyncio.Task[None]] = [asyncio.create_task(watchdog.run(), name="watchdog")]
+        retention = RetentionJob(
+            sessionmaker,
+            settings.media_dir,
+            settings.photo_retention_days,
+            settings.data_retention_days,
+            settings.retention_interval_s,
+        )
+        tasks: list[asyncio.Task[None]] = [
+            asyncio.create_task(watchdog.run(), name="watchdog"),
+            asyncio.create_task(retention.run(), name="retention"),
+        ]
         if settings.mqtt_enabled:
             worker = MqttWorker(settings, sessionmaker, broadcaster)
             app.state.command_publisher = MqttCommandPublisher(worker)

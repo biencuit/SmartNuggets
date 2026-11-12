@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
 
 /** Mise en page des écrans de connexion et d'inscription (pensée d'abord pour le mobile). */
 export function AuthLayout({ title, children }: { title: string; children: ReactNode }) {
@@ -10,6 +11,11 @@ export function AuthLayout({ title, children }: { title: string; children: React
           <h1 className="mb-6 text-xl font-semibold text-stone-900">{title}</h1>
           {children}
         </section>
+        <p className="mt-4 text-center text-sm text-stone-500">
+          <Link to="/vie-privee" className="underline">
+            Vie privée et données personnelles
+          </Link>
+        </p>
       </div>
     </main>
   );
