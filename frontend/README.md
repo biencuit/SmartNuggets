@@ -70,7 +70,10 @@ Le tableau de bord regroupe :
 - **Alertes** : non lues ou toutes, marquer comme lue, photo de l'alerte.
 
 Tout se met à jour en direct par **un seul** flux SSE par poulailler : `useCoopStatus` reçoit
-les messages `status`, et transmet `event` et `alert` au tableau de bord.
+les messages `status`, et transmet `event` et `alert` au tableau de bord. Si le flux est
+abandonné (502 pendant un déploiement) ou reste muet plus de 40 s (le serveur envoie un `ping`
+toutes les 15 s), le hook le rouvre lui-même. Le serveur renvoie l'état complet à chaque
+connexion : le compteur de poules se recale sans recharger la page.
 
 Une page réservée aux utilisateurs connectés s'entoure de `<ProtectedRoute>`. Le jeton
 s'obtient avec `useAuth().token` et se passe aux fonctions de `api/client.ts`.
