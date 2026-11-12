@@ -81,7 +81,7 @@ uvicorn app.main:create_app --factory --reload
 | POST | `/coops/{coop_id}/alerts/{alert_id}/ack` | Marquer une alerte comme lue |
 | GET | `/coops/{coop_id}/alerts/{alert_id}/image` | Photo associée à une alerte |
 | POST | `/coops/{coop_id}/command` | Commande manuelle `OPEN`, `CLOSE` ou `CALIBRATE` (+ `inside_count`) |
-| GET | `/coops/{coop_id}/stream` | Flux temps réel (Server-Sent Events) : `status`, `event`, `alert` |
+| GET | `/coops/{coop_id}/stream` | Flux temps réel (Server-Sent Events) : `status` (aussi envoyé dès la connexion), `event`, `alert`, et `ping` toutes les 15 s sans autre message |
 
 ## Communication avec le Raspberry Pi (MQTT)
 
