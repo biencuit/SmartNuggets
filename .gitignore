@@ -45,3 +45,6 @@ mosquitto/certs/
 
 # Présentations exportées
 *.pdf
+
+# Photo de test de la caméra (python -m hardware.camera_check)
+test-camera.jpg
