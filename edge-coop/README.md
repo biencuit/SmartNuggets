@@ -95,15 +95,28 @@ catégorie (`hen`, `predator`, `other`), une confiance entre 0 et 1 et un nom li
   renvoie une détection `hen` par oiseau vu.
 
   ```bash
+  # Sur le Pi : PyTorch en version CPU d'abord, sinon pip télécharge des Go de CUDA inutiles
+  pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
   pip install -e ".[yolo]"
   # .env : DETECTOR=ai_detector.yolo:YoloDetector
-  yolo export model=yolo11n.pt format=ncnn   # sur le Pi, puis YOLO_MODEL=yolo11n_ncnn_model
+  yolo export model=yolo11n.pt format=ncnn   # puis YOLO_MODEL=yolo11n_ncnn_model
   python prototypes/detection_poule.py chemin/vers/images   # verdict et temps par image
   ```
 
+  Mesuré sur le Pi 5 (NCNN) : 100 à 125 ms par photo, 80 à 95 ms sur les images de la
+  caméra (640 × 480). Le premier appel prend environ 2 s (chargement du modèle).
+
+  **Mode démo, sans poule** : un objet du quotidien passe pour une poule, et un autre, si on
+  veut, pour un prédateur. Numéros des classes : `ultralytics/cfg/datasets/coco.yaml`.
+
+  ```bash
+  YOLO_HEN_CLASSES=67        # téléphone (« cell phone ») = poule ; défaut : 14 (« bird »)
+  YOLO_PREDATOR_CLASSES=41   # tasse (« cup ») = prédateur ; défaut : aucun
+  ```
+
   Limites : n'importe quel oiseau est pris pour une poule, le modèle nano rate certaines
-  photos, et **aucun prédateur n'est reconnu** (prévu avec US-SECU-1). Un fine-tuning sur nos
-  propres images corrigerait les deux premiers points.
+  photos, et **aucun prédateur n'est reconnu** hors mode démo (prévu avec US-SECU-1). Un
+  fine-tuning sur nos propres images corrigerait les deux premiers points.
 
 ## Programme du poulailler (`coop_app/`, `door_controller/`)
 
