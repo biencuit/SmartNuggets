@@ -55,6 +55,9 @@ def test_scenario_de_la_demo_de_bout_en_bout():
         "DOOR_CLOSE",  # soir
     ]
     assert uplink.alerts() == ["PREDATOR_DETECTED"]
+    # La photo du renard du scénario part avec l'alerte (#23).
+    alert = next(f for kind, name, f in uplink.sent if name == "PREDATOR_DETECTED")
+    assert alert["image"] == (SCENARIO.parent / "renard.jpg").read_bytes()
     closes = [f for kind, name, f in uplink.sent if name == "DOOR_CLOSE"]
     assert [c["trigger_source"] for c in closes] == ["FAILSAFE", "SCHEDULE"]
     assert closes[-1]["inside_count"] == 9  # une poule dehors : le serveur en fera une alerte
@@ -65,3 +68,12 @@ def test_scenario_de_la_demo_de_bout_en_bout():
 def test_action_inconnue_refusee():
     with pytest.raises(ValueError, match="Action inconnue"):
         Step(at=1, do="danser")
+
+
+def test_image_du_scenario_verifiee_au_chargement(tmp_path):
+    scenario = tmp_path / "scenario.json"
+    scenario.write_text('{"steps": [{"at": 1, "do": "predator", "image": "absente.jpg"}]}')
+    with pytest.raises(FileNotFoundError, match="absente.jpg"):
+        load_scenario(scenario)
+    with pytest.raises(ValueError, match="hen et predator"):
+        Step(at=1, do="exit", image="renard.jpg")

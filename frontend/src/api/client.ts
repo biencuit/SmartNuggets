@@ -84,6 +84,91 @@ export interface CoopAlert {
   created_at: string;
 }
 
+/** Filtres de la page Historique (#27). */
+export type HistoryCategory = "entries" | "exits" | "door" | "alerts";
+
+/** Une ligne de l'historique complet : un événement OU une alerte (`GET /history`). */
+export interface HistoryItem {
+  kind: "event" | "alert";
+  /** Identifiant dans sa table d'origine : un événement et une alerte peuvent avoir le même. */
+  id: number;
+  type: EventType | AlertType;
+  /** ISO 8601, UTC. */
+  occurred_at: string;
+  /** Événements seulement. */
+  trigger_source: TriggerSource | null;
+  inside_count_after: number | null;
+  /** Alertes seulement. */
+  severity: Severity | null;
+  image_url: string | null;
+  acknowledged: boolean | null;
+}
+
+export interface HistoryPage {
+  /** Nombre de résultats pour ces filtres, toutes pages confondues. */
+  total: number;
+  items: HistoryItem[];
+}
+
+export interface HistoryQuery {
+  /** Vide : tout. */
+  categories: HistoryCategory[];
+  /** Début (inclus) et fin (exclue), ISO 8601 ; null : pas de limite. */
+  since: string | null;
+  until: string | null;
+  limit: number;
+  offset: number;
+}
+
+/** Passages d'une journée ; heures locales « HH:MM:SS ». */
+export interface HabitDay {
+  /** AAAA-MM-JJ */
+  day: string;
+  exits: number;
+  entries: number;
+  first_exit: string | null;
+  last_entry: string | null;
+}
+
+export interface HabitHour {
+  hour: number;
+  exits: number;
+  entries: number;
+}
+
+/** Habitudes des poules (`GET /habits`). */
+export interface Habits {
+  timezone: string;
+  /** Du plus ancien au plus récent, jours vides compris. */
+  days: HabitDay[];
+  /** 24 éléments, de 0 h à 23 h. */
+  hours: HabitHour[];
+  average_first_exit: string | null;
+  average_last_entry: string | null;
+  /** Moyenne sur les jours avec au moins un passage (`active_days`). */
+  exits_per_day: number;
+  active_days: number;
+  total_exits: number;
+  total_entries: number;
+}
+
+/** Paramètres de `GET /history`, toujours dans le même ordre (catégories répétées). */
+export function historyQueryString(query: HistoryQuery): string {
+  const params = new URLSearchParams();
+  for (const category of query.categories) {
+    params.append("category", category);
+  }
+  if (query.since) {
+    params.set("since", query.since);
+  }
+  if (query.until) {
+    params.set("until", query.until);
+  }
+  params.set("limit", String(query.limit));
+  params.set("offset", String(query.offset));
+  return params.toString();
+}
+
 export type CommandAction = "OPEN" | "CLOSE" | "CALIBRATE";
 
 export interface CommandAccepted {
@@ -180,6 +265,18 @@ export const api = {
     apiFetch<CoopAlert[]>(`/coops/${encodeURIComponent(coopId)}/alerts?limit=${String(limit)}`, {
       token,
     }),
+  /** Historique complet (passages, porte, alertes), filtré et paginé. */
+  listHistory: (token: string, coopId: string, query: HistoryQuery) =>
+    apiFetch<HistoryPage>(
+      `/coops/${encodeURIComponent(coopId)}/history?${historyQueryString(query)}`,
+      { token },
+    ),
+  /** Habitudes des `days` derniers jours ; `timeZone` : fuseau IANA du navigateur. */
+  getHabits: (token: string, coopId: string, days: number, timeZone: string) =>
+    apiFetch<Habits>(
+      `/coops/${encodeURIComponent(coopId)}/habits?days=${String(days)}&tz=${encodeURIComponent(timeZone)}`,
+      { token },
+    ),
   acknowledgeAlert: (token: string, coopId: string, alertId: number) =>
     apiFetch<CoopAlert>(`/coops/${encodeURIComponent(coopId)}/alerts/${String(alertId)}/ack`, {
       method: "POST",

@@ -16,6 +16,8 @@ dependencies = [
     "pyjwt>=2.9",
     "email-validator>=2.2",
     "python-multipart>=0.0.9",
+    # Base des fuseaux horaires pour zoneinfo (absente de Windows et de certaines images)
+    "tzdata>=2024.1",
 ]
 
 [project.optional-dependencies]

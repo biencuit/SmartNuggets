@@ -1,7 +1,8 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 
 import { ApiError } from "../api/client";
+import { clearNotice, readNotice } from "../auth/notice";
 import { useAuth } from "../auth/useAuth";
 import { AuthLayout } from "../components/AuthLayout";
 import { FormError, FormField, SubmitButton } from "../components/FormField";
@@ -11,6 +12,9 @@ export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from ?? "/";
+  // Message laissé par une autre page (compte supprimé), affiché une seule fois.
+  const [notice] = useState(readNotice);
+  useEffect(clearNotice, []);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -41,6 +45,14 @@ export function LoginPage() {
           void handleSubmit(event);
         }}
       >
+        {notice && (
+          <p
+            role="status"
+            className="mb-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800"
+          >
+            {notice}
+          </p>
+        )}
         <FormError message={error} />
         <FormField
           id="email"

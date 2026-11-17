@@ -50,3 +50,51 @@ describe("apiFetch", () => {
     await expect(apiFetch("/health")).rejects.toMatchObject({ status: 0 });
   });
 });
+
+describe("historique et habitudes (#27)", () => {
+  it("répète la catégorie et encode les dates de la période", async () => {
+    const url =
+      "/api/v1/coops/coop_01/history?category=entries&category=alerts" +
+      "&since=2026-11-08T23%3A00%3A00.000Z&until=2026-11-09T23%3A00%3A00.000Z&limit=50&offset=100";
+    const calls = mockFetch({ [`GET ${url}`]: () => ({ body: { total: 0, items: [] } }) });
+
+    const page = await api.listHistory("abc", "coop_01", {
+      categories: ["entries", "alerts"],
+      since: "2026-11-08T23:00:00.000Z",
+      until: "2026-11-09T23:00:00.000Z",
+      limit: 50,
+      offset: 100,
+    });
+
+    expect(page).toEqual({ total: 0, items: [] });
+    expect(calls[0]?.headers.Authorization).toBe("Bearer abc");
+  });
+
+  it("sans filtre ni période, n'envoie que la pagination", async () => {
+    const calls = mockFetch({
+      "GET /api/v1/coops/coop_01/history?limit=50&offset=0": () => ({
+        body: { total: 0, items: [] },
+      }),
+    });
+
+    await api.listHistory("abc", "coop_01", {
+      categories: [],
+      since: null,
+      until: null,
+      limit: 50,
+      offset: 0,
+    });
+
+    expect(calls).toHaveLength(1);
+  });
+
+  it("envoie le nombre de jours et le fuseau des habitudes", async () => {
+    const calls = mockFetch({
+      "GET /api/v1/coops/coop_01/habits?days=30&tz=America%2FNew_York": () => ({ body: {} }),
+    });
+
+    await api.getHabits("abc", "coop_01", 30, "America/New_York");
+
+    expect(calls[0]?.url).toBe("/api/v1/coops/coop_01/habits?days=30&tz=America%2FNew_York");
+  });
+});

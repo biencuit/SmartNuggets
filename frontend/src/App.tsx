@@ -1,13 +1,26 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { HistoryPage } from "./pages/HistoryPage";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
+import { PrivacyPage } from "./pages/PrivacyPage";
+import { ProfilePage } from "./pages/ProfilePage";
 import { RegisterPage } from "./pages/RegisterPage";
 
 export function App() {
   return (
     <Routes>
+      {/* Données personnelles (RGPD, #64) : page publique et page du compte. */}
+      <Route path="/vie-privee" element={<PrivacyPage />} />
+      <Route
+        path="/compte"
+        element={
+          <ProtectedRoute>
+            <ProfilePage />
+          </ProtectedRoute>
+        }
+      />
       <Route path="/connexion" element={<LoginPage />} />
       <Route path="/inscription" element={<RegisterPage />} />
       {/* L'accueil est le tableau de bord ; /poulaillers/:coopId choisit le poulailler affiché. */}
@@ -24,6 +37,15 @@ export function App() {
         element={
           <ProtectedRoute>
             <HomePage />
+          </ProtectedRoute>
+        }
+      />
+      {/* Historique complet et habitudes des poules (#27). */}
+      <Route
+        path="/poulaillers/:coopId/historique"
+        element={
+          <ProtectedRoute>
+            <HistoryPage />
           </ProtectedRoute>
         }
       />

@@ -36,7 +36,7 @@ async def test_event_stream() -> None:
 
     stream = event_stream(queue, is_disconnected, ping_interval=0.01)
     assert await anext(stream) == ": connecté\n\n"
-    assert await anext(stream) == ": ping\n\n"
+    assert await anext(stream) == "event: ping\ndata: {}\n\n"
     await queue.put({"event": "alert", "data": {"id": 1}})
     assert await anext(stream) == 'event: alert\ndata: {"id":1}\n\n'
     disconnected = True

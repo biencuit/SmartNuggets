@@ -33,8 +33,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 COMPOSE=(docker compose -f docker-compose.prod.yml)
 PASSWD=mosquitto/config/passwd
-# Adresse du broker vue par le Pi (à changer quand le VPS aura un nom de domaine).
-MQTT_PUBLIC_HOST="${MQTT_PUBLIC_HOST:-15.235.251.11}"
+# Adresse du broker vue par le Pi.
+MQTT_PUBLIC_HOST="${MQTT_PUBLIC_HOST:-smartnuggets.be}"
 
 if [[ "$MODE" == "--code-only" ]]; then
   "${COMPOSE[@]}" exec -T backend python -m app.new_coop "$COOP_ID" --new-code
@@ -65,13 +65,13 @@ cat <<EOF
 
 $REGISTERED
 
-1) Sur le Raspberry Pi, dans edge-coop/.env (avec ca.crt copié dans /etc/smartnuggets/) :
+1) Sur le Raspberry Pi, dans edge-coop/.env :
 
 COOP_ID=$COOP_ID
 MQTT_HOST=$MQTT_PUBLIC_HOST
 MQTT_PORT=8883
 MQTT_TLS=true
-MQTT_CA_CERT=/etc/smartnuggets/ca.crt
+MQTT_CA_CERT=
 MQTT_USERNAME=$COOP_ID
 MQTT_PASSWORD=$MQTT_PASSWORD
 

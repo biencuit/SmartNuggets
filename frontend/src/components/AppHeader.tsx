@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 
 import { useAuth } from "../auth/useAuth";
 
-/** Bandeau commun des pages connectées : nom de l'application, compte, déconnexion. */
+/** Bandeau commun des pages connectées : nom de l'application, « Mon compte », déconnexion. */
 export function AppHeader() {
   const { user, logout } = useAuth();
   return (
@@ -12,6 +12,9 @@ export function AppHeader() {
       </Link>
       <div className="flex items-center gap-3 text-sm">
         <span className="hidden sm:inline">{user?.email}</span>
+        <Link to="/compte" className="rounded-lg px-2 py-1.5 hover:bg-white/15">
+          Mon compte
+        </Link>
         <button
           type="button"
           onClick={logout}

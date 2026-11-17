@@ -1,10 +1,11 @@
 """Routes des poulaillers : état, historique, alertes et commandes manuelles."""
 
 from collections.abc import AsyncIterator
+from datetime import datetime
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Query, Request, status
+from fastapi import APIRouter, HTTPException, Query, Request, status
 from fastapi.responses import FileResponse, StreamingResponse
 
 from app.deps import (
@@ -23,8 +24,13 @@ from app.schemas import (
     CoopRead,
     CoopStatus,
     EventRead,
+    HabitsRead,
+    HistoryCategory,
+    HistoryPage,
 )
-from app.services.sse import event_stream
+from app.services.habits import DEFAULT_TIMEZONE, UnknownTimezoneError, load_timezone
+from app.services.sse import event_stream, format_sse
+from app.timeutils import ensure_utc
 
 router = APIRouter(prefix="/api/v1/coops", tags=["poulaillers"])
 
@@ -73,6 +79,69 @@ async def list_events(
 ) -> list[EventRead]:
     events = await service.list_events(coop_id, event_type=event_type, limit=limit, offset=offset)
     return [EventRead.model_validate(event) for event in events]
+
+
+@router.get(
+    "/{coop_id}/history",
+    response_model=HistoryPage,
+    summary="Historique complet : passages, porte et alertes",
+    description=(
+        "Événements et alertes dans une seule liste, du plus récent au plus ancien. "
+        "`category` peut être répété (`?category=entries&category=alerts`) ; sans catégorie, "
+        "tout est renvoyé. `since` est inclus, `until` est exclu (dates ISO 8601, UTC si "
+        "aucun fuseau n'est indiqué). `total` compte tous les résultats, pas seulement la page."
+    ),
+    responses={422: {"description": "Catégorie inconnue, dates incohérentes ou limite invalide"}},
+)
+async def get_history(
+    coop_id: str,
+    service: CoopServiceDep,
+    category: Annotated[
+        list[HistoryCategory] | None, Query(description="entries, exits, door ou alerts")
+    ] = None,
+    since: Annotated[datetime | None, Query(description="Début de la période (inclus)")] = None,
+    until: Annotated[datetime | None, Query(description="Fin de la période (exclue)")] = None,
+    limit: Annotated[int, Query(ge=1, le=100, description="Taille de la page")] = 50,
+    offset: Offset = 0,
+) -> HistoryPage:
+    if since is not None and until is not None and ensure_utc(since) >= ensure_utc(until):
+        raise HTTPException(
+            status_code=422,
+            detail="La fin de la période doit être après son début",
+        )
+    return await service.history_page(
+        coop_id, categories=category, since=since, until=until, limit=limit, offset=offset
+    )
+
+
+@router.get(
+    "/{coop_id}/habits",
+    response_model=HabitsRead,
+    summary="Habitudes des poules : sorties et retours par jour et par heure",
+    description=(
+        "Résumé des entrées et sorties des `days` derniers jours (aujourd'hui compris). "
+        "Les jours et les heures sont ceux du fuseau `tz` (nom IANA, Europe/Brussels par "
+        "défaut) : un passage à 23 h 30 à Bruxelles compte pour ce jour-là, même en hiver."
+    ),
+    responses={422: {"description": "Nombre de jours hors de 1..31 ou fuseau inconnu"}},
+)
+async def get_habits(
+    coop_id: str,
+    service: CoopServiceDep,
+    days: Annotated[int, Query(ge=1, le=31, description="Nombre de jours")] = 7,
+    tz: Annotated[
+        str,
+        Query(
+            pattern=r"^[A-Za-z0-9_+/-]{1,64}$",
+            description="Fuseau horaire IANA, par exemple Europe/Brussels",
+        ),
+    ] = DEFAULT_TIMEZONE,
+) -> HabitsRead:
+    try:
+        zone = load_timezone(tz)
+    except UnknownTimezoneError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return await service.get_habits(coop_id, days=days, tz=zone)
 
 
 @router.get(
@@ -150,8 +219,9 @@ async def get_alert_image(
     response_class=StreamingResponse,
     summary="Flux temps réel (Server-Sent Events)",
     description=(
-        "Événements `status` (état complet du poulailler), `event` (passage, porte) et "
-        "`alert`. Un commentaire `: ping` est envoyé toutes les 15 s. EventSource ne pouvant "
+        "Événements `status` (état complet du poulailler, envoyé aussi dès la connexion), "
+        "`event` (passage, porte) et `alert`. Sans autre message, un événement `ping` part "
+        "toutes les 15 s : la page sait ainsi que le flux est vivant. EventSource ne pouvant "
         "pas envoyer d'en-tête, le jeton peut être passé en paramètre `?token=`."
     ),
 )
@@ -167,6 +237,12 @@ async def stream(
 
     async def body() -> AsyncIterator[str]:
         async with broadcaster.subscribe(coop_id) as queue:
+            # L'état actuel part en premier : après une coupure, EventSource se reconnecte et
+            # la page se recale aussitôt, sans attendre le prochain message du Pi. On s'abonne
+            # avant de le lire : un passage arrivé entre les deux est déjà dans la file.
+            current = await service.get_status(coop_id)
+            await service.session.close()
+            yield format_sse("status", current.model_dump(mode="json"))
             async for chunk in event_stream(queue, request.is_disconnected):
                 yield chunk
 

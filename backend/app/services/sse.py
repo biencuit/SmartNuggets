@@ -17,12 +17,17 @@ async def event_stream(
     is_disconnected: Callable[[], Awaitable[bool]],
     ping_interval: float = 15.0,
 ) -> AsyncIterator[str]:
-    """Relaye les messages de la file ; un commentaire "ping" garde la connexion ouverte."""
+    """Relaye les messages de la file.
+
+    Sans message pendant `ping_interval`, un événement `ping` garde la connexion ouverte. C'est
+    un vrai événement et pas un commentaire SSE : la page le voit passer et sait ainsi que le
+    flux est vivant (sinon, elle le rouvre).
+    """
     yield ": connecté\n\n"
     while not await is_disconnected():
         try:
             message = await asyncio.wait_for(queue.get(), timeout=ping_interval)
         except TimeoutError:
-            yield ": ping\n\n"
+            yield format_sse("ping", {})
             continue
         yield format_sse(message["event"], message["data"])

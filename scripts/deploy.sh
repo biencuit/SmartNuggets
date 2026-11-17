@@ -7,8 +7,12 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 COMPOSE=(docker compose -f docker-compose.prod.yml)
+DOMAIN=smartnuggets.be
 
-for f in backend/.env mosquitto/config/passwd mosquitto/certs/fullchain.pem mosquitto/certs/privkey.pem; do
+# /etc/letsencrypt/renewal/<domaine>.conf existe dès que certbot a créé le certificat
+# (le dossier live/ n'est lisible qu'en root).
+for f in backend/.env mosquitto/config/passwd mosquitto/certs/fullchain.pem mosquitto/certs/privkey.pem \
+  "/etc/letsencrypt/renewal/$DOMAIN.conf"; do
   [[ -e "$f" ]] || { echo "Fichier manquant : $f (voir le wiki, page 16)" >&2; exit 1; }
 done
 
@@ -18,9 +22,10 @@ git pull --ff-only
 echo "==> build et redémarrage"
 "${COMPOSE[@]}" up -d --build --remove-orphans
 
-echo "==> attente de l'API"
+echo "==> attente de l'API (en HTTPS)"
 for _ in $(seq 1 30); do
-  if curl -fsS http://127.0.0.1/api/v1/health >/dev/null 2>&1; then
+  # --resolve : passe par nginx sur ce serveur, en vérifiant le certificat du domaine.
+  if curl -fsS --resolve "$DOMAIN:443:127.0.0.1" "https://$DOMAIN/api/v1/health" >/dev/null 2>&1; then
     echo "API OK - version $(git rev-parse --short HEAD) déployée"
     docker image prune -f >/dev/null
     "${COMPOSE[@]}" ps

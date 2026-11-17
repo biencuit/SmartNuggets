@@ -80,6 +80,13 @@ export function RegisterPage() {
             setConfirmation(event.target.value);
           }}
         />
+        <p className="mb-4 text-sm text-stone-600">
+          Vos données servent uniquement à faire fonctionner le service :{" "}
+          <Link to="/vie-privee" className="font-medium text-amber-800 underline">
+            ce que nous gardons et combien de temps
+          </Link>
+          .
+        </p>
         <SubmitButton busy={busy}>Créer mon compte</SubmitButton>
       </form>
       <p className="mt-6 text-center text-sm text-stone-600">

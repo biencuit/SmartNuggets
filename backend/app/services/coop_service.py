@@ -3,20 +3,43 @@
 import uuid
 from collections.abc import Sequence
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.errors import ForbiddenError, NotFoundError
-from app.models import Alert, Coop, Event
-from app.repositories import AlertRepository, CoopRepository, DeviceRepository, EventRepository
-from app.schemas import CommandRequest, CoopCreate, CoopStatus
+from app.models import Alert, Coop, Event, EventType
+from app.repositories import (
+    AlertRepository,
+    CoopRepository,
+    DeviceRepository,
+    EventRepository,
+    HistoryRepository,
+)
+from app.schemas import (
+    CommandRequest,
+    CoopCreate,
+    CoopStatus,
+    HabitsRead,
+    HistoryCategory,
+    HistoryItem,
+    HistoryPage,
+)
 from app.security import normalize_claim_code, verify_password
 from app.services.commands import CommandPublisher, DoorCommand
+from app.services.habits import PASSAGE_TYPES, compute_habits, period_start, utc_bounds
 from app.timeutils import ensure_utc, utcnow
 
 DEFAULT_OFFLINE_AFTER_S = 900
 CLAIM_REFUSED = "Identifiant ou code d'appairage incorrect"
+
+# Types d'événements derrière chaque filtre de la page Historique.
+CATEGORY_EVENT_TYPES: dict[HistoryCategory, tuple[EventType, ...]] = {
+    HistoryCategory.ENTRIES: (EventType.HEN_ENTRY,),
+    HistoryCategory.EXITS: (EventType.HEN_EXIT,),
+    HistoryCategory.DOOR: (EventType.DOOR_OPEN, EventType.DOOR_CLOSE, EventType.OBSTACLE),
+}
 
 
 class CoopService:
@@ -37,6 +60,7 @@ class CoopService:
         self.devices = DeviceRepository(session)
         self.events = EventRepository(session)
         self.alerts = AlertRepository(session)
+        self.history = HistoryRepository(session)
 
     async def list_coops(self) -> Sequence[Coop]:
         return await self.coops.list(owner_id=self.owner_id)
@@ -94,6 +118,54 @@ class CoopService:
         return await self.alerts.list_for_coop(
             coop_id, acknowledged=acknowledged, limit=limit, offset=offset
         )
+
+    async def history_page(
+        self,
+        coop_id: str,
+        *,
+        categories: Sequence[HistoryCategory] | None,
+        since: datetime | None,
+        until: datetime | None,
+        limit: int,
+        offset: int,
+    ) -> HistoryPage:
+        """Historique complet (passages, porte, alertes), filtré et paginé."""
+        await self.get_coop(coop_id)
+        if categories:
+            selected = set(categories)
+            event_types: set[str] | None = {
+                event_type
+                for category in selected
+                for event_type in CATEGORY_EVENT_TYPES.get(category, ())
+            }
+            include_alerts = HistoryCategory.ALERTS in selected
+        else:
+            # Aucun filtre : tous les événements, y compris un futur nouveau type.
+            event_types, include_alerts = None, True
+        rows, total = await self.history.page(
+            coop_id,
+            event_types=event_types,
+            include_alerts=include_alerts,
+            since=since,
+            until=until,
+            limit=limit,
+            offset=offset,
+        )
+        return HistoryPage(
+            total=total, items=[HistoryItem.model_validate(dict(row._mapping)) for row in rows]
+        )
+
+    async def get_habits(
+        self, coop_id: str, *, days: int, tz: ZoneInfo, now: datetime | None = None
+    ) -> HabitsRead:
+        """Habitudes des `days` derniers jours, aujourd'hui compris, en heure locale `tz`."""
+        await self.get_coop(coop_id)
+        first_day = period_start(now or utcnow(), tz, days)
+        since, until = utc_bounds(first_day, days, tz)
+        passages = await self.events.list_between(
+            coop_id, event_types=PASSAGE_TYPES, since=since, until=until
+        )
+        return compute_habits(passages, tz, first_day, days)
 
     async def get_alert(self, coop_id: str, alert_id: int) -> Alert:
         await self.get_coop(coop_id)

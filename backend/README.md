@@ -23,7 +23,14 @@ fichier SQLite local `smartnuggets.db`.
 alembic upgrade head      # crée / met à jour le schéma
 python -m app.seed        # compte demo@smartnuggets.be / poulailler + poulailler coop_01
                           # + Pi coop_02 à ajouter avec le code DEMO-DEMO-0002
+python -m app.seed --historique   # régénère l'historique de démo d'une base existante
 ```
+
+Le poulailler de démo a deux semaines d'historique jusqu'à hier (`app/demo_history.py`) :
+passages réalistes à l'heure de Bruxelles, porte qui suit les règles du Pi, et un renard avec
+photo il y a trois jours (`app/demo/renard.jpg`, une illustration). Le tirage a une graine
+fixe : la démo est toujours la même. Aujourd'hui reste vide pour les vraies données (ou le
+scénario de `scripts/dev.sh --demo`).
 
 Pour PostgreSQL, copier `.env.example` en `.env` et adapter `DATABASE_URL`.
 
@@ -59,11 +66,22 @@ uvicorn app.main:create_app --factory --reload
   deviner quels identifiants existent.
 - Un nouveau Pi s'enregistre avec `python -m app.new_coop coop_02`, qui affiche son code
   (sur le VPS : `scripts/new-coop.sh`, qui crée aussi le compte MQTT). Code perdu avant
-  d'avoir servi : `python -m app.new_coop coop_02 --new-code`.
+  d'avoir servi : `python -m app.new_coop coop_02 --new-code` (sur le VPS :
+  `bash scripts/new-coop.sh coop_02 --code-only`).
 - `/stream` et `/image` acceptent aussi `?token=<jeton>`, parce qu'`EventSource` et `<img>`
   ne peuvent pas envoyer d'en-tête.
 - En production, `JWT_SECRET_KEY` doit être définie. Sans elle, une clé temporaire est générée
   et les sessions sont perdues à chaque redémarrage.
+
+## Données personnelles (RGPD)
+
+- **Suppression du compte** (`app/services/account_service.py`) : passages, alertes, photos,
+  poulaillers puis compte, supprimés un par un (SQLite n'applique pas les `ON DELETE
+  CASCADE`). Le Raspberry Pi est libéré : `bash scripts/new-coop.sh <id> --code-only` lui
+  donne un nouveau code pour un autre compte.
+- **Durées de conservation** (`app/services/retention.py`, une fois par jour) : photo
+  d'alerte supprimée après `PHOTO_RETENTION_DAYS` (30 jours, l'alerte reste) ; passages et
+  alertes supprimés après `DATA_RETENTION_DAYS` (365 jours).
 
 ## Endpoints (préfixe `/api/v1`)
 
@@ -73,15 +91,19 @@ uvicorn app.main:create_app --factory --reload
 | POST | `/auth/register` | Créer un compte (public) |
 | POST | `/auth/login` | Se connecter, renvoie un jeton (public) |
 | GET | `/auth/me` | Profil de l'utilisateur connecté |
+| GET | `/auth/me/export` | Toutes mes données en JSON (RGPD, droit à la portabilité) |
+| DELETE | `/auth/me` | Supprimer mon compte et tout ce qui lui appartient ; corps `{"password"}`, 401 si faux |
 | GET | `/coops` | Poulaillers de l'utilisateur connecté |
 | POST | `/coops` | Ajouter un poulailler à son compte : `id` du Raspberry Pi + `claim_code` (code d'appairage) |
 | GET | `/coops/{coop_id}/status` | État actuel : porte, compteurs, batterie, dernière communication |
 | GET | `/coops/{coop_id}/events?type=&limit=&offset=` | Historique paginé des passages et événements |
 | GET | `/coops/{coop_id}/alerts?acknowledged=&limit=&offset=` | Alertes, de la plus récente à la plus ancienne |
+| GET | `/coops/{coop_id}/history?category=&since=&until=&limit=&offset=` | Historique complet (#27) : passages, porte et alertes mélangés, `{total, items}` |
+| GET | `/coops/{coop_id}/habits?days=7&tz=Europe/Brussels` | Habitudes des poules (#27) : sorties et retours par jour et par heure |
 | POST | `/coops/{coop_id}/alerts/{alert_id}/ack` | Marquer une alerte comme lue |
 | GET | `/coops/{coop_id}/alerts/{alert_id}/image` | Photo associée à une alerte |
 | POST | `/coops/{coop_id}/command` | Commande manuelle `OPEN`, `CLOSE` ou `CALIBRATE` (+ `inside_count`) |
-| GET | `/coops/{coop_id}/stream` | Flux temps réel (Server-Sent Events) : `status`, `event`, `alert` |
+| GET | `/coops/{coop_id}/stream` | Flux temps réel (Server-Sent Events) : `status` (aussi envoyé dès la connexion), `event`, `alert`, et `ping` toutes les 15 s sans autre message |
 
 ## Communication avec le Raspberry Pi (MQTT)
 
@@ -104,7 +126,9 @@ Sans `MQTT_ENABLED`, l'API fonctionne seule et les commandes sont simplement gar
 
 - `online` : vrai si le Pi est connecté au broker (topic `status`, Last Will) **et** s'il a
   donné des nouvelles depuis moins de `DEVICE_OFFLINE_AFTER_S` (15 min par défaut) ;
-- `battery` (%) et `camera_ok`, envoyés par le Pi dans sa télémétrie ;
+- `camera_ok`, envoyé par le Pi dans sa télémétrie ; `battery` (%) aussi, mais le programme du
+  Pi n'en envoie pas encore (pas de capteur de batterie) : seule la touche `b` de
+  `scripts/dev.sh` en publie ;
 - `last_seen_at` : heure du dernier message reçu.
 
 Alertes automatiques :
@@ -113,6 +137,19 @@ Alertes automatiques :
 |---|---|
 | `DEVICE_OFFLINE` | aucune nouvelle depuis 15 min (vérifié chaque minute, une alerte par coupure) |
 | `LOW_BATTERY` | la batterie passe sous 20 % (une alerte par décharge, pas à chaque message) |
+
+## Historique et habitudes (#27)
+
+- `GET /history` réunit les tables `events` et `alerts` par un `UNION ALL`
+  (`repositories/history.py`) : la base trie et pagine la liste mélangée. `category` se répète
+  (`entries`, `exits`, `door`, `alerts` ; aucune = tout). `since` est inclus, `until` exclu ;
+  une date sans fuseau est lue en UTC. `total` compte tous les résultats, pour la pagination.
+- `GET /habits` calcule en Python (`services/habits.py`, `zoneinfo`) les sorties et retours
+  par jour et par heure dans le fuseau demandé. Le même code marche sous SQLite et PostgreSQL,
+  et un jour de changement d'heure (23 h ou 25 h) est compté juste. `exits_per_day` est la
+  moyenne sur les jours avec au moins un passage (`active_days`).
+- Paramètres invalides (dates inversées, catégorie ou fuseau inconnus, `days` hors 1..31,
+  `limit` > 100) : 422. Poulailler d'un autre compte : 404.
 
 ## Organisation du code
 
@@ -123,6 +160,7 @@ app/
 ├── db.py            # moteur SQLAlchemy async
 ├── models.py        # tables : users, devices, coops, events, alerts
 ├── new_coop.py      # python -m app.new_coop : enregistrer un nouveau Raspberry Pi
+├── seed.py          # python -m app.seed : données de démo (+ demo_history.py, demo/)
 ├── mqtt/            # topics, format des messages, client MQTT
 ├── schemas.py       # entrées / sorties de l'API (Pydantic)
 ├── security.py      # hachage Argon2id, codes d'appairage, jetons JWT

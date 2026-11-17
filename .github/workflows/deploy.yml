@@ -48,10 +48,8 @@ jobs:
           ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes \
             "$VPS_USER@$VPS_HOST"
 
-      - name: Vérifier l'application
-        env:
-          VPS_HOST: ${{ secrets.VPS_HOST }}
-        run: curl -fsS --retry 5 --retry-delay 3 "http://$VPS_HOST/api/v1/health"
+      - name: Vérifier l'application (HTTPS)
+        run: curl -fsS --retry 5 --retry-delay 3 https://smartnuggets.be/api/v1/health
 
       - name: Nettoyer la clé
         if: always()

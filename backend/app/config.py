@@ -26,6 +26,12 @@ class Settings(BaseSettings):
     media_dir: str = "media"
     max_image_bytes: int = 2_000_000
 
+    # Durées de conservation (RGPD) : photos d'alerte, puis passages et alertes. Purge
+    # une fois par jour (`app/services/retention.py`).
+    photo_retention_days: int = 30
+    data_retention_days: int = 365
+    retention_interval_s: float = 86_400.0
+
     # Santé du dispositif : au-delà de ce délai sans nouvelles, le poulailler est "hors ligne"
     # et une alerte DEVICE_OFFLINE est créée. Le Pi envoie une télémétrie au moins toutes
     # les 5 minutes (battement de cœur).

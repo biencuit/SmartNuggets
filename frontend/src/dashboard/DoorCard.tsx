@@ -32,11 +32,14 @@ function DoorDrawing({ open }: { open: boolean }) {
 export function DoorCard({
   status,
   predator,
+  imageUrl,
   onCommand,
 }: {
   status: CoopStatus;
   /** Alerte prédateur récente non lue : l'ouverture demande une confirmation. */
   predator: CoopAlert | undefined;
+  /** Adresse de la photo d'une alerte : celle du prédateur s'affiche tout de suite (#23). */
+  imageUrl?: (alertId: number) => string;
   onCommand: (action: DoorAction) => Promise<void>;
 }) {
   // État de la porte au moment de l'envoi : la commande reste « en attente » tant qu'il ne change pas.
@@ -97,10 +100,22 @@ export function DoorCard({
       </div>
 
       {predator && (
-        <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">
-          Prédateur détecté à {formatTime(predator.created_at)}. Évitez d'ouvrir la porte tant que
-          l'alerte n'est pas vérifiée.
-        </p>
+        <div
+          role="alert"
+          className="flex flex-col gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-800"
+        >
+          <p>
+            Prédateur détecté à {formatTime(predator.created_at)}. Évitez d'ouvrir la porte tant que
+            l'alerte n'est pas vérifiée.
+          </p>
+          {predator.image_url && imageUrl && (
+            <img
+              src={imageUrl(predator.id)}
+              alt={`Photo du prédateur prise à ${formatTime(predator.created_at)}`}
+              className="max-h-48 self-start rounded-md object-contain"
+            />
+          )}
+        </div>
       )}
       {!status.online && (
         <p className="text-sm text-stone-600">

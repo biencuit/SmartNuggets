@@ -26,6 +26,7 @@ class AppConfig:
     hen_threshold: float = 0.7
     predator_threshold: float = 0.5
     predator_lock_s: float = 300.0  # porte verrouillée après un prédateur
+    photo_max_bytes: int = 200_000  # photo envoyée avec l'alerte prédateur
     auto_close_after_s: float = 60.0  # refermer quand plus aucune poule ne passe
     obstacle_retry_s: float = 10.0  # attente avant de réessayer de fermer (x1, x2, x3 puis fixe)
     obstacle_max_attempts: int = 3  # fermetures empêchées d'affilée avant l'alerte à l'éleveur
@@ -61,6 +62,7 @@ class AppConfig:
             hen_threshold=float(get("HEN_THRESHOLD", d.hen_threshold)),
             predator_threshold=float(get("PREDATOR_THRESHOLD", d.predator_threshold)),
             predator_lock_s=float(get("PREDATOR_LOCK_S", d.predator_lock_s)),
+            photo_max_bytes=int(get("PHOTO_MAX_BYTES", d.photo_max_bytes)),
             auto_close_after_s=float(get("AUTO_CLOSE_AFTER_S", d.auto_close_after_s)),
             obstacle_retry_s=float(get("OBSTACLE_RETRY_S", d.obstacle_retry_s)),
             obstacle_max_attempts=int(get("OBSTACLE_MAX_ATTEMPTS", d.obstacle_max_attempts)),
