@@ -49,9 +49,7 @@ class NotificationService:
     def _wants_notification(self, user: User, alert: Alert) -> bool:
         if not user.push_enabled or not user.telegram_chat_id:
             return False
-        if user.notify_critical_only and alert.severity != Severity.CRITICAL:
-            return False
-        return True
+        return not (user.notify_critical_only and alert.severity != Severity.CRITICAL)
 
     async def _send_telegram(self, user: User, alert: Alert) -> None:
         label = ALERT_LABELS.get(alert.alert_type, alert.alert_type)

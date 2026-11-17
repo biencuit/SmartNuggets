@@ -52,9 +52,7 @@ async def test_desactiver_garde_l_identifiant_telegram_enregistre(
 ) -> None:
     await client.patch(PREFS, json={"push_enabled": True, "telegram_chat_id": "123456"})
 
-    response = await client.patch(
-        PREFS, json={"push_enabled": False, "telegram_chat_id": "123456"}
-    )
+    response = await client.patch(PREFS, json={"push_enabled": False, "telegram_chat_id": "123456"})
 
     assert response.status_code == 200
     assert response.json()["push_enabled"] is False
