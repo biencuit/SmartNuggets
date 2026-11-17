@@ -1,7 +1,12 @@
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { deleteMyAccount, exportMyData } from "../api/account";
+import {
+  deleteMyAccount,
+  exportMyData,
+  getNotificationPrefs,
+  updateNotificationPrefs,
+} from "../api/account";
 import { ApiError } from "../api/client";
 import { rememberNotice } from "../auth/notice";
 import { useAuth } from "../auth/useAuth";
@@ -42,6 +47,67 @@ export function ProfilePage() {
   const [understood, setUnderstood] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [telegramChatId, setTelegramChatId] = useState("");
+  const [criticalOnly, setCriticalOnly] = useState(false);
+  const [notifSaving, setNotifSaving] = useState(false);
+  const [notifSaved, setNotifSaved] = useState(false);
+  const [notifError, setNotifError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!token) {
+      return;
+    }
+    const controller = new AbortController();
+    void (async () => {
+      try {
+        const prefs = await getNotificationPrefs(token);
+        if (controller.signal.aborted) {
+          return;
+        }
+        setPushEnabled(prefs.push_enabled);
+        setTelegramChatId(prefs.telegram_chat_id ?? "");
+        setCriticalOnly(prefs.notify_critical_only);
+      } catch (err) {
+        if (controller.signal.aborted) {
+          return;
+        }
+        if (err instanceof ApiError && err.status === 401) {
+          logout();
+        }
+      }
+    })();
+    return () => {
+      controller.abort();
+    };
+  }, [token, logout]);
+
+  async function saveNotifications(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!token) {
+      return;
+    }
+    setNotifError(null);
+    setNotifSaved(false);
+    setNotifSaving(true);
+    try {
+      await updateNotificationPrefs(token, {
+        push_enabled: pushEnabled,
+        telegram_chat_id: telegramChatId.trim() === "" ? null : telegramChatId.trim(),
+        notify_critical_only: criticalOnly,
+      });
+      setNotifSaved(true);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        logout();
+        return;
+      }
+      setNotifError(err instanceof ApiError ? err.message : "L'enregistrement a échoué.");
+    } finally {
+      setNotifSaving(false);
+    }
+  }
 
   async function download() {
     if (!token) {
@@ -102,6 +168,66 @@ export function ProfilePage() {
             </Link>
             .
           </p>
+        </section>
+
+        <section aria-labelledby="notifications-titre" className={`${CARD} ring-stone-200`}>
+          <h2 id="notifications-titre" className="text-lg font-semibold text-stone-900">
+            Notifications
+          </h2>
+          <p className="text-sm text-stone-600">
+            Recevez une alerte (prédateur, batterie faible, poulailler hors ligne...) sur Telegram,
+            même sans avoir l'application ouverte.
+          </p>
+          <form
+            onSubmit={(event) => {
+              void saveNotifications(event);
+            }}
+          >
+            <label className="mb-4 flex items-start gap-2 text-sm text-stone-700">
+              <input
+                type="checkbox"
+                checked={pushEnabled}
+                onChange={(event) => {
+                  setPushEnabled(event.target.checked);
+                }}
+                className="mt-0.5"
+              />
+              Activer les notifications Telegram
+            </label>
+            <FormField
+              id="telegram-chat-id"
+              label="Identifiant de chat Telegram"
+              placeholder="ex. 123456789"
+              value={telegramChatId}
+              onChange={(event) => {
+                setTelegramChatId(event.target.value);
+              }}
+            />
+            <p className="-mt-3 mb-4 text-xs text-stone-500">
+              Pour l'obtenir : démarrez une conversation avec <code>@userinfobot</code> sur
+              Telegram, il répond avec votre identifiant.
+            </p>
+            <label className="mb-4 flex items-start gap-2 text-sm text-stone-700">
+              <input
+                type="checkbox"
+                checked={criticalOnly}
+                onChange={(event) => {
+                  setCriticalOnly(event.target.checked);
+                }}
+                className="mt-0.5"
+              />
+              Ne me notifier que pour les alertes critiques (prédateur, porte bloquée)
+            </label>
+            <FormError message={notifError} />
+            {notifSaved && <p className="mb-4 text-sm text-green-700">Préférences enregistrées.</p>}
+            <button
+              type="submit"
+              disabled={notifSaving}
+              className="self-start rounded-lg bg-amber-700 px-4 py-2 font-medium text-white hover:bg-amber-800 disabled:opacity-60"
+            >
+              {notifSaving ? "Enregistrement…" : "Enregistrer"}
+            </button>
+          </form>
         </section>
 
         <section aria-labelledby="export-titre" className={`${CARD} ring-stone-200`}>

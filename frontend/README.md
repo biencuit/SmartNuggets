@@ -63,6 +63,10 @@ télécharger ses données en JSON et supprimer son compte (mot de passe redeman
 `/vie-privee` (publique, lien sous la connexion et l'inscription) dit ce qui est gardé,
 pourquoi, combien de temps et où.
 
+Notifications (#68) : toujours sur `/compte`, la carte **Notifications** active les alertes
+sur Telegram (identifiant de chat à renseigner, obtenu via `@userinfobot`) et permet de ne
+garder que les alertes critiques (prédateur, porte bloquée).
+
 Le tableau de bord regroupe :
 
 - **Dernier événement** : sous le nom du poulailler, le dernier passage ou mouvement de porte,

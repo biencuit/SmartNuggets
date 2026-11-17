@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     mqtt_password: str | None = None
     mqtt_client_id: str = "smartnuggets-backend"
 
+    # Notifications (#68). Sans jeton, les préférences restent modifiables mais rien n'est envoyé.
+    telegram_bot_token: str | None = None
+
 
 @lru_cache
 def get_settings() -> Settings:

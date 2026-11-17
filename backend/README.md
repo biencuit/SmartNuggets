@@ -83,6 +83,16 @@ uvicorn app.main:create_app --factory --reload
   d'alerte supprimée après `PHOTO_RETENTION_DAYS` (30 jours, l'alerte reste) ; passages et
   alertes supprimés après `DATA_RETENTION_DAYS` (365 jours).
 
+## Notifications (#68)
+
+- `app/services/notifications.py` envoie l'alerte sur Telegram (API Bot, `sendMessage`) dès
+  qu'elle est créée (batterie faible, poulailler hors ligne, alerte reçue du Pi), si
+  l'éleveur a activé `push_enabled` et renseigné son `telegram_chat_id` (page « Mon compte »).
+  `notify_critical_only` ne garde alors que les alertes `CRITICAL`.
+- Sans `TELEGRAM_BOT_TOKEN` dans la configuration, les préférences restent modifiables mais
+  rien n'est envoyé. Un échec d'envoi (jeton ou identifiant invalide, API Telegram en panne)
+  est journalisé et n'empêche jamais la création ni l'affichage de l'alerte.
+
 ## Endpoints (préfixe `/api/v1`)
 
 | Méthode | Route | Description |
@@ -93,6 +103,8 @@ uvicorn app.main:create_app --factory --reload
 | GET | `/auth/me` | Profil de l'utilisateur connecté |
 | GET | `/auth/me/export` | Toutes mes données en JSON (RGPD, droit à la portabilité) |
 | DELETE | `/auth/me` | Supprimer mon compte et tout ce qui lui appartient ; corps `{"password"}`, 401 si faux |
+| GET | `/auth/me/notifications` | Mes préférences de notification (Telegram) |
+| PATCH | `/auth/me/notifications` | Activer/régler mes notifications ; corps `{"push_enabled", "telegram_chat_id", "notify_critical_only"}` |
 | GET | `/coops` | Poulaillers de l'utilisateur connecté |
 | POST | `/coops` | Ajouter un poulailler à son compte : `id` du Raspberry Pi + `claim_code` (code d'appairage) |
 | GET | `/coops/{coop_id}/status` | État actuel : porte, compteurs, batterie, dernière communication |

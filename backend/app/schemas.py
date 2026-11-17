@@ -33,6 +33,18 @@ class Token(BaseModel):
     token_type: str = "bearer"
 
 
+class NotificationPrefs(ORMModel):
+    push_enabled: bool
+    telegram_chat_id: str | None
+    notify_critical_only: bool
+
+
+class NotificationPrefsUpdate(BaseModel):
+    push_enabled: bool
+    telegram_chat_id: str | None = Field(default=None, max_length=64)
+    notify_critical_only: bool = False
+
+
 class CoopCreate(BaseModel):
     id: str = Field(
         pattern=r"^[A-Za-z0-9_-]{1,64}$",

@@ -101,6 +101,7 @@ class MqttWorker:
                     self.settings.max_image_bytes,
                     self.settings.device_offline_after_s,
                     self.settings.low_battery_threshold,
+                    self.settings.telegram_bot_token,
                 )
                 if channel is topics.Channel.TELEMETRY:
                     await service.handle_telemetry(
