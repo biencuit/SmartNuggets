@@ -1,13 +1,19 @@
 import base64
+import json
 from datetime import UTC, datetime, timedelta
 
 from mqtt_uplink import MqttUplink, Outbox, UplinkConfig
-from mqtt_uplink.client import Command, parse_command
+from mqtt_uplink.client import Command, ScheduleDay, parse_command, parse_schedule
 
 from .conftest import NOW, FakePahoClient
 
 COMMANDS = "smartnuggets/coop_01/commands"
 SCHEDULE = "smartnuggets/coop_01/schedule"
+
+
+def week() -> list[dict]:
+    """7 jours à 07:00-21:00 (payload MQTT du serveur, voir `backend/app/schemas.py`)."""
+    return [{"weekday": d, "open_from": "07:00", "close_at": "21:00"} for d in range(7)]
 
 
 def command(action: str = "OPEN", age_s: float = 0, command_id: str = "c1", **extra) -> dict:
@@ -143,6 +149,38 @@ def test_parse_command_refuse_les_commandes_invalides() -> None:
     assert ok is not None
     assert ok.inside_count == 4
     assert ok.issued_at == datetime(2026, 11, 3, 8, tzinfo=UTC)
+
+
+def test_planning_recu_appelle_on_schedule(
+    uplink: MqttUplink, fake_client: FakePahoClient, received_schedules: list[list[ScheduleDay]]
+) -> None:
+    fake_client.connect()
+    fake_client.receive(SCHEDULE, {"days": week()})
+
+    assert len(received_schedules) == 1
+    assert len(received_schedules[0]) == 7
+    assert received_schedules[0][0] == ScheduleDay(weekday=0, open_from="07:00", close_at="21:00")
+
+
+def test_planning_illisible_est_ignore(
+    uplink: MqttUplink, fake_client: FakePahoClient, received_schedules: list[list[ScheduleDay]]
+) -> None:
+    fake_client.connect()
+    fake_client.receive(SCHEDULE, b"pas du json")
+    fake_client.receive(SCHEDULE, {"days": week()[:6]})  # il manque un jour
+
+    assert received_schedules == []
+
+
+def test_parse_schedule_refuse_un_planning_incomplet() -> None:
+    assert parse_schedule(b"pas du json") is None
+    assert parse_schedule(b'{"days": []}') is None
+    incomplet = json.dumps({"days": week()[:6]}).encode()
+    assert parse_schedule(incomplet) is None
+    doublon = json.dumps({"days": week()[:6] + [week()[0]]}).encode()  # jour 0 en double
+    assert parse_schedule(doublon) is None
+    ok = parse_schedule(json.dumps({"days": week()}).encode())
+    assert ok is not None and len(ok) == 7
 
 
 def test_config_depuis_l_environnement() -> None:
