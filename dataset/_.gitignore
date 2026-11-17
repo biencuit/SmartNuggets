@@ -1,0 +1,6 @@
+# Les images pèsent lourd : ne pas les versionner dans git (utiliser un drive partagé, DVC ou Git LFS)
+raw/
+yolo/
+rejected/
+review/
+__pycache__/
