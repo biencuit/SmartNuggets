@@ -27,9 +27,15 @@ ALERT_LABELS = {
 
 
 class NotificationService:
-    def __init__(self, session: AsyncSession, telegram_bot_token: str | None) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        telegram_bot_token: str | None,
+        transport: httpx.AsyncBaseTransport | None = None,
+    ) -> None:
         self.session = session
         self.telegram_bot_token = telegram_bot_token
+        self.transport = transport  # tests seulement : remplace la vraie connexion Telegram
         self.users = UserRepository(session)
 
     async def notify_alert(self, owner_id: uuid.UUID, alert: Alert) -> None:
@@ -51,7 +57,7 @@ class NotificationService:
         label = ALERT_LABELS.get(alert.alert_type, alert.alert_type)
         text = f"🐔 SmartNuggets ({alert.coop_id}) — {label}"
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
+            async with httpx.AsyncClient(timeout=5.0, transport=self.transport) as client:
                 response = await client.post(
                     TELEGRAM_API_URL.format(token=self.telegram_bot_token),
                     json={"chat_id": user.telegram_chat_id, "text": text},
