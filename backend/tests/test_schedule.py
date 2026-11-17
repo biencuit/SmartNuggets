@@ -18,9 +18,7 @@ def custom_week(saturday_close: str = "22:00:00") -> list[dict]:
     return days
 
 
-async def test_planning_par_defaut_sans_personnalisation(
-    client: AsyncClient, coop: Coop
-) -> None:
+async def test_planning_par_defaut_sans_personnalisation(client: AsyncClient, coop: Coop) -> None:
     response = await client.get(SCHEDULE)
 
     assert response.status_code == 200
@@ -42,9 +40,7 @@ async def test_regler_le_planning_le_sauvegarde_et_le_transmet(
     assert sent[5][2].isoformat() == "22:00:00"
 
 
-async def test_planning_refuse_sauf_exactement_sept_jours(
-    client: AsyncClient, coop: Coop
-) -> None:
+async def test_planning_refuse_sauf_exactement_sept_jours(client: AsyncClient, coop: Coop) -> None:
     response = await client.put(SCHEDULE, json={"days": DEFAULT_WEEK[:6]})  # il en manque un
     assert response.status_code == 422
 
