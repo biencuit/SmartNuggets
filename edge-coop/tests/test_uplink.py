@@ -7,6 +7,7 @@ from mqtt_uplink.client import Command, parse_command
 from .conftest import NOW, FakePahoClient
 
 COMMANDS = "smartnuggets/coop_01/commands"
+SCHEDULE = "smartnuggets/coop_01/schedule"
 
 
 def command(action: str = "OPEN", age_s: float = 0, command_id: str = "c1", **extra) -> dict:
@@ -24,7 +25,7 @@ def test_connexion_annonce_online_et_s_abonne_aux_commandes(
     fake_client.connect()
 
     assert uplink.connected
-    assert fake_client.subscriptions == [COMMANDS]
+    assert fake_client.subscriptions == [COMMANDS, SCHEDULE]
     assert fake_client.published[0] == ("smartnuggets/coop_01/status", b"online", 1, True)
 
 

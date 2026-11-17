@@ -22,8 +22,9 @@ from ai_detector import Detector, Label, best
 from coop_app.config import AppConfig
 from coop_app.devices import Devices
 from coop_app.photo import reduce_jpeg
-from door_controller import Door, DoorState, MoveResult, Passage, PassageCounter, Source
+from door_controller import Door, DoorState, MoveResult, Passage, PassageCounter, Schedule, Source
 from hardware.interfaces import Switch
+from mqtt_uplink.client import ScheduleDay
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +81,18 @@ class CoopController:
         self._last_activity = 0.0
         self._last_heartbeat: float | None = None
         self._motion_before = False
+        # Planning par jour de la semaine (0 = lundi ... 6 = dimanche) ; le même horaire fixe
+        # (variables d'environnement) pour les 7 jours tant que le serveur n'en a pas réglé un.
+        self._weekly_schedule: dict[int, Schedule] = dict.fromkeys(range(7), config.schedule)
+
+    def on_schedule(self, days: list[ScheduleDay]) -> None:
+        """Remplace le planning (#70), reçu du serveur par MQTT (message retenu)."""
+        self._weekly_schedule = {
+            day.weekday: Schedule.parse(day.open_from, day.close_at) for day in days
+        }
+
+    def _schedule_for(self, now: datetime) -> Schedule:
+        return self._weekly_schedule.get(now.weekday(), self.config.schedule)
 
     # ------------------------------------------------------------------ boucle
 
@@ -94,7 +107,7 @@ class CoopController:
 
     def tick(self) -> None:
         t = self.clock()
-        night = not self.config.schedule.is_day(self.now())
+        night = not self._schedule_for(self.now()).is_day(self.now())
         if night and self.door.state != DoorState.CLOSED and not self._door_in_error():
             logger.info("Fin de journée : fermeture de la porte")
             self._close(Source.SCHEDULE)
@@ -184,7 +197,7 @@ class CoopController:
         if self.predator_locked():
             logger.warning("Ouverture refusée (%s) : prédateur vu récemment", source)
             return False
-        if source == Source.AI_AUTO and not self.config.schedule.is_day(self.now()):
+        if source == Source.AI_AUTO and not self._schedule_for(self.now()).is_day(self.now()):
             return False
         return not self._door_in_error()
 
