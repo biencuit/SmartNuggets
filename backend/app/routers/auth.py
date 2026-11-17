@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 from app.deps import AuthServiceDep, CurrentUser, SessionDep, SettingsDep
 from app.errors import UnauthorizedError
-from app.schemas import Token, UserCreate, UserRead
+from app.schemas import NotificationPrefs, NotificationPrefsUpdate, Token, UserCreate, UserRead
 from app.services.account_service import AccountService
 
 router = APIRouter(prefix="/api/v1/auth", tags=["authentification"])
@@ -62,6 +62,27 @@ async def export_my_data(
         data,
         headers={"Content-Disposition": 'attachment; filename="smartnuggets-mes-donnees.json"'},
     )
+
+
+@router.get(
+    "/me/notifications",
+    response_model=NotificationPrefs,
+    summary="Mes préférences de notification",
+)
+async def my_notification_prefs(user: CurrentUser) -> NotificationPrefs:
+    return NotificationPrefs.model_validate(user)
+
+
+@router.patch(
+    "/me/notifications",
+    response_model=NotificationPrefs,
+    summary="Activer ou régler mes notifications (Telegram)",
+)
+async def update_notification_prefs(
+    data: NotificationPrefsUpdate, user: CurrentUser, session: SessionDep, settings: SettingsDep
+) -> NotificationPrefs:
+    updated = await AccountService(session, settings).update_notification_prefs(user, data)
+    return NotificationPrefs.model_validate(updated)
 
 
 class AccountDelete(BaseModel):

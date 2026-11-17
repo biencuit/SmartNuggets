@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import Settings
 from app.errors import UnauthorizedError
 from app.models import Alert, Coop, Device, Event, User
-from app.schemas import AlertRead, EventRead, UserRead
+from app.schemas import AlertRead, EventRead, NotificationPrefsUpdate, UserRead
 from app.security import verify_password
 from app.timeutils import ensure_utc, utcnow
 
@@ -77,6 +77,13 @@ class AccountService:
         # Les photos partent après le commit : si la base refuse, rien n'est perdu.
         for folder in folders:
             await asyncio.to_thread(shutil.rmtree, folder, True)  # True : dossier absent toléré
+
+    async def update_notification_prefs(self, user: User, data: NotificationPrefsUpdate) -> User:
+        user.push_enabled = data.push_enabled
+        user.telegram_chat_id = data.telegram_chat_id
+        user.notify_critical_only = data.notify_critical_only
+        await self.session.commit()
+        return user
 
     async def _coops_of(self, user: User) -> list[Coop]:
         result = await self.session.scalars(
