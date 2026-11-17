@@ -10,6 +10,7 @@ import { AlertsCard } from "./AlertsCard";
 import { DoorCard } from "./DoorCard";
 import { DoorHistoryCard } from "./DoorHistoryCard";
 import { HenCountCard } from "./HenCountCard";
+import { ScheduleCard } from "./ScheduleCard";
 import { EVENT_LABELS, formatDateTime, recentPredator, TRIGGER_LABELS } from "./labels";
 
 /** Ajoute un élément reçu en direct en tête de liste, sans doublon. */
@@ -141,6 +142,7 @@ export function CoopDashboard({ coopId, name }: { coopId: string; name: string }
             />
           </div>
           <SystemStatusCard status={status} now={now} live={live} />
+          <ScheduleCard coopId={coopId} />
         </>
       )}
 
