@@ -13,12 +13,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import Settings, get_settings
 from app.db import create_engine, create_sessionmaker
 from app.errors import register_exception_handlers
-from app.mqtt.worker import MqttCommandPublisher, MqttWorker
+from app.mqtt.worker import MqttCommandPublisher, MqttSchedulePublisher, MqttWorker
 from app.routers import auth, coops, health
 from app.services.broadcaster import Broadcaster
 from app.services.commands import InMemoryCommandPublisher
 from app.services.health import DeviceWatchdog
 from app.services.retention import RetentionJob
+from app.services.schedule_publisher import InMemorySchedulePublisher
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +56,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if settings.mqtt_enabled:
             worker = MqttWorker(settings, sessionmaker, broadcaster)
             app.state.command_publisher = MqttCommandPublisher(worker)
+            app.state.schedule_publisher = MqttSchedulePublisher(worker)
             tasks.append(asyncio.create_task(worker.run(), name="mqtt-worker"))
         yield
         for task in tasks:
@@ -74,6 +76,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.sessionmaker = sessionmaker
     app.state.broadcaster = broadcaster
     app.state.command_publisher = InMemoryCommandPublisher()
+    app.state.schedule_publisher = InMemorySchedulePublisher()
 
     app.add_middleware(
         CORSMiddleware,

@@ -12,7 +12,7 @@ from coop_app.config import AppConfig
 from coop_app.controller import CoopController
 from coop_app.devices import build_devices
 from door_controller import DoorConfig, DoorState
-from mqtt_uplink.client import Command
+from mqtt_uplink.client import Command, ScheduleDay
 
 DAY = datetime(2026, 11, 10, 10, 0)
 NIGHT = datetime(2026, 11, 10, 22, 0)
@@ -177,6 +177,34 @@ def test_la_nuit_la_porte_se_ferme_et_ne_s_ouvre_plus_seule(env):
     assert controller.door.state == DoorState.OPEN
 
 
+def test_on_schedule_remplace_l_horaire_d_un_jour_precis(env):
+    """Planning reçu du serveur (#70) : un samedi peut fermer plus tard qu'un mardi."""
+    controller, devices, detector, uplink, clock = env
+    saturday_evening = datetime(2026, 11, 14, 22, 0)  # samedi, horaire par défaut : nuit
+
+    controller.on_command("OPEN")
+    clock.now = saturday_evening
+    controller.tick()
+    assert controller.door.state == DoorState.CLOSED  # horaire fixe (21h) : encore en vigueur
+
+    controller.on_command("OPEN")
+    controller.on_schedule(
+        [
+            ScheduleDay(weekday=day, open_from="07:00", close_at="22:30" if day == 5 else "21:00")
+            for day in range(7)
+        ]
+    )
+    controller.tick()
+    assert controller.door.state == DoorState.OPEN  # samedi (jour 5) : encore jour jusqu'à 22h30
+
+    detector.show(Label.HEN, 0.95)
+    clock.now = NIGHT  # mardi (jour 1), resté à 21h dans le nouveau planning
+    controller.tick()
+    assert controller.door.state == DoorState.CLOSED
+    mouvement(controller, devices)
+    assert controller.door.state == DoorState.CLOSED  # ne s'ouvre pas seule hors plage
+
+
 def test_commandes_de_l_application(env):
     controller, _, _, uplink, _ = env
     controller.on_command("OPEN")
@@ -242,6 +270,17 @@ def test_les_commandes_mqtt_passent_par_la_boucle_principale(env):
     assert controller.door.state == DoorState.OPEN
     turns = iter(range(3))
     app.run(until=lambda: next(turns, None) is None)
+
+
+def test_le_planning_mqtt_passe_par_la_boucle_principale(env):
+    controller = env[0]
+    app = CoopApp(controller, poll_s=0, sleep=lambda s: None)
+    app.submit_schedule(
+        [ScheduleDay(weekday=d, open_from="00:00", close_at="23:59") for d in range(7)]
+    )
+    assert controller._weekly_schedule[0].close_at.hour == 21  # rien avant le tour de boucle
+    app.step()
+    assert controller._weekly_schedule[0].close_at.hour == 23
 
 
 def test_configuration_depuis_l_environnement():

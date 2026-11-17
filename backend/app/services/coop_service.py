@@ -2,20 +2,21 @@
 
 import uuid
 from collections.abc import Sequence
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.errors import ForbiddenError, NotFoundError
-from app.models import Alert, Coop, Event, EventType
+from app.models import Alert, Coop, DoorSchedule, Event, EventType
 from app.repositories import (
     AlertRepository,
     CoopRepository,
     DeviceRepository,
     EventRepository,
     HistoryRepository,
+    ScheduleRepository,
 )
 from app.schemas import (
     CommandRequest,
@@ -25,14 +26,19 @@ from app.schemas import (
     HistoryCategory,
     HistoryItem,
     HistoryPage,
+    WeekScheduleUpdate,
 )
 from app.security import normalize_claim_code, verify_password
 from app.services.commands import CommandPublisher, DoorCommand
 from app.services.habits import PASSAGE_TYPES, compute_habits, period_start, utc_bounds
+from app.services.schedule_publisher import InMemorySchedulePublisher, SchedulePublisher
 from app.timeutils import ensure_utc, utcnow
 
 DEFAULT_OFFLINE_AFTER_S = 900
 CLAIM_REFUSED = "Identifiant ou code d'appairage incorrect"
+# Horaire par défaut : aucune ligne en base ne signifie "07:00-21:00 tous les jours".
+DEFAULT_OPEN_FROM = time(7, 0)
+DEFAULT_CLOSE_AT = time(21, 0)
 
 # Types d'événements derrière chaque filtre de la page Historique.
 CATEGORY_EVENT_TYPES: dict[HistoryCategory, tuple[EventType, ...]] = {
@@ -51,16 +57,19 @@ class CoopService:
         publisher: CommandPublisher,
         owner_id: uuid.UUID,
         offline_after_s: int = DEFAULT_OFFLINE_AFTER_S,
+        schedule_publisher: SchedulePublisher | None = None,
     ) -> None:
         self.session = session
         self.publisher = publisher
         self.owner_id = owner_id
         self.offline_after_s = offline_after_s
+        self.schedule_publisher = schedule_publisher or InMemorySchedulePublisher()
         self.coops = CoopRepository(session)
         self.devices = DeviceRepository(session)
         self.events = EventRepository(session)
         self.alerts = AlertRepository(session)
         self.history = HistoryRepository(session)
+        self.schedules = ScheduleRepository(session)
 
     async def list_coops(self) -> Sequence[Coop]:
         return await self.coops.list(owner_id=self.owner_id)
@@ -187,6 +196,34 @@ class CoopService:
         )
         await self.publisher.publish(command)
         return command
+
+    async def get_schedule(self, coop_id: str) -> list[DoorSchedule]:
+        await self.get_coop(coop_id)
+        rows = await self.schedules.list_for_coop(coop_id)
+        if rows:
+            return list(rows)
+        return [
+            DoorSchedule(
+                coop_id=coop_id,
+                weekday=weekday,
+                open_from=DEFAULT_OPEN_FROM,
+                close_at=DEFAULT_CLOSE_AT,
+            )
+            for weekday in range(7)
+        ]
+
+    async def update_schedule(self, coop_id: str, data: WeekScheduleUpdate) -> list[DoorSchedule]:
+        """Enregistre le planning puis le transmet tout de suite au Raspberry Pi.
+
+        Le planning est gardé même si la transmission échoue (broker injoignable) : elle
+        peut être retentée (nouvel appel) sans perdre ce qui a déjà été réglé.
+        """
+        await self.get_coop(coop_id)
+        days = sorted((day.weekday, day.open_from, day.close_at) for day in data.days)
+        rows = await self.schedules.replace(coop_id, days)
+        await self.session.commit()
+        await self.schedule_publisher.publish_schedule(coop_id, days)
+        return rows
 
 
 def is_online(coop: Coop, offline_after_s: int, now: datetime | None = None) -> bool:

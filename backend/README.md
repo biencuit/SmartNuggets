@@ -115,6 +115,8 @@ uvicorn app.main:create_app --factory --reload
 | POST | `/coops/{coop_id}/alerts/{alert_id}/ack` | Marquer une alerte comme lue |
 | GET | `/coops/{coop_id}/alerts/{alert_id}/image` | Photo associée à une alerte |
 | POST | `/coops/{coop_id}/command` | Commande manuelle `OPEN`, `CLOSE` ou `CALIBRATE` (+ `inside_count`) |
+| GET | `/coops/{coop_id}/schedule` | Planning hebdomadaire de la porte (#70) ; sans réglage, horaire par défaut 07:00-21:00 |
+| PUT | `/coops/{coop_id}/schedule` | Régler les 7 jours ; transmis tout de suite au Pi (MQTT retenu) |
 | GET | `/coops/{coop_id}/stream` | Flux temps réel (Server-Sent Events) : `status` (aussi envoyé dès la connexion), `event`, `alert`, et `ping` toutes les 15 s sans autre message |
 
 ## Communication avec le Raspberry Pi (MQTT)
@@ -127,6 +129,11 @@ l'API lance au démarrage un client MQTT (`app/mqtt/worker.py`) qui :
   (`app/services/ingestion.py`) et pousse chaque changement sur le flux SSE ;
 - publie les commandes manuelles sur `smartnuggets/{coop_id}/commands` (QoS 1) ;
   si le broker est injoignable, `POST /command` répond `503` ;
+- publie le planning sur `smartnuggets/{coop_id}/schedule` en message **retenu** (#70) : le
+  Pi le reçoit dès qu'il se (re)connecte, même s'il était hors ligne à l'enregistrement ;
+  contrairement aux commandes, pas de fenêtre de validité (c'est de la config, pas un ordre
+  ponctuel) ; si le broker est injoignable, `PUT /schedule` répond `503` (le planning reste
+  enregistré, à retransmettre en renvoyant la même requête) ;
 - se reconnecte tout seul et garde une session persistante : les messages envoyés par les
   poulaillers pendant un redémarrage de l'API ne sont pas perdus.
 

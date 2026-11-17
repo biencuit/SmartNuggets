@@ -80,6 +80,8 @@ Le tableau de bord regroupe :
   d'ouvertures, première ouverture, dernière fermeture, passages des poules. Les 200 derniers
   événements sont chargés.
 - **Alertes** : non lues ou toutes, marquer comme lue, photo de l'alerte.
+- **Planning de la porte** (#70) : un horaire d'ouverture et de fermeture par jour de la
+  semaine (`GET`/`PUT /schedule`), transmis tout de suite au Raspberry Pi à l'enregistrement.
 
 Tout se met à jour en direct par **un seul** flux SSE par poulailler : `useCoopStatus` reçoit
 les messages `status`, et transmet `event` et `alert` au tableau de bord. Si le flux est

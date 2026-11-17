@@ -24,6 +24,7 @@ from app.mqtt.messages import AlertMessage, TelemetryMessage, parse_status
 from app.services.broadcaster import Broadcaster
 from app.services.commands import DoorCommand
 from app.services.ingestion import IngestionService
+from app.services.schedule_publisher import ScheduleDays
 
 logger = logging.getLogger(__name__)
 
@@ -138,3 +139,34 @@ class MqttCommandPublisher:
             )
         except aiomqtt.MqttError as exc:
             raise ServiceUnavailableError("Échec de l'envoi de la commande au broker MQTT") from exc
+
+
+class MqttSchedulePublisher:
+    """Publie le planning sur smartnuggets/{coop_id}/schedule, en message retenu (QoS 1)."""
+
+    def __init__(self, worker: MqttWorker) -> None:
+        self.worker = worker
+
+    async def publish_schedule(self, coop_id: str, days: ScheduleDays) -> None:
+        client = self.worker.client
+        if client is None:
+            raise ServiceUnavailableError("Broker MQTT injoignable : planning non transmis")
+        payload = {
+            "days": [
+                {
+                    "weekday": weekday,
+                    "open_from": open_from.isoformat(),
+                    "close_at": close_at.isoformat(),
+                }
+                for weekday, open_from, close_at in days
+            ]
+        }
+        try:
+            await client.publish(
+                topics.topic(coop_id, topics.Channel.SCHEDULE),
+                payload=json.dumps(payload),
+                qos=1,
+                retain=True,
+            )
+        except aiomqtt.MqttError as exc:
+            raise ServiceUnavailableError("Échec de l'envoi du planning au broker MQTT") from exc

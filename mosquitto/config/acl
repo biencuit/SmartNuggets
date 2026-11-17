@@ -6,10 +6,12 @@ pattern write smartnuggets/%u/telemetry
 pattern write smartnuggets/%u/alerts
 pattern write smartnuggets/%u/status
 pattern read smartnuggets/%u/commands
+pattern read smartnuggets/%u/schedule
 
-# API : écoute tous les poulaillers et leur envoie les commandes.
+# API : écoute tous les poulaillers et leur envoie les commandes et le planning.
 user backend_service
 topic read smartnuggets/+/telemetry
 topic read smartnuggets/+/alerts
 topic read smartnuggets/+/status
 topic write smartnuggets/+/commands
+topic write smartnuggets/+/schedule

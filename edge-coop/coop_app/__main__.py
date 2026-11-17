@@ -47,7 +47,12 @@ def main() -> None:
 
     outbox = Outbox(uplink_config.outbox_path)
     app: CoopApp | None = None
-    uplink = MqttUplink(uplink_config, outbox, on_command=lambda c: app and app.submit(c))
+    uplink = MqttUplink(
+        uplink_config,
+        outbox,
+        on_command=lambda c: app and app.submit(c),
+        on_schedule=lambda days: app and app.submit_schedule(days),
+    )
     controller = CoopController(config, devices, detector, uplink, time.monotonic, now)
     app = CoopApp(controller, config.poll_s)
     signal.signal(signal.SIGTERM, lambda *_: app.stop())

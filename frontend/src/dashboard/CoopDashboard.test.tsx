@@ -1,8 +1,8 @@
-import { act, screen, within } from "@testing-library/react";
+import { act, fireEvent, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
-import type { CoopAlert, CoopEvent } from "../api/client";
+import type { CoopAlert, CoopEvent, DaySchedule } from "../api/client";
 import { TOKEN_KEY } from "../auth/context";
 import { FakeEventSource } from "../test/FakeEventSource";
 import { mockFetch, USER } from "../test/fetchMock";
@@ -10,6 +10,12 @@ import { renderApp } from "../test/renderApp";
 import { makeStatus } from "../test/statusFixture";
 
 const BASE = "/api/v1/coops/coop_01";
+
+const DEFAULT_WEEK = Array.from({ length: 7 }, (_, weekday) => ({
+  weekday,
+  open_from: "07:00:00",
+  close_at: "21:00:00",
+}));
 
 function makeEvent(overrides: Partial<CoopEvent> = {}): CoopEvent {
   return {
@@ -56,11 +62,13 @@ function setup(
       options.gone ? gone : { body: options.events ?? [makeEvent()] },
     [`GET ${BASE}/alerts?limit=50`]: () =>
       options.gone ? gone : { body: options.alerts ?? [makeAlert()] },
+    [`GET ${BASE}/schedule`]: () => (options.gone ? gone : { body: { days: DEFAULT_WEEK } }),
     [`POST ${BASE}/command`]: () =>
       options.commandStatus
         ? { status: options.commandStatus, body: { detail: "Le poulailler est injoignable" } }
         : { status: 202, body: { command_id: "c1", coop_id: "coop_01", action: "OPEN" } },
     [`POST ${BASE}/alerts/7/ack`]: () => ({ body: makeAlert({ acknowledged: true }) }),
+    [`PUT ${BASE}/schedule`]: (call) => ({ body: JSON.parse(call.body ?? "{}") }),
   });
   renderApp("/");
   return calls;
@@ -286,5 +294,25 @@ describe("CoopDashboard - tableau de bord du poulailler, sur l'accueil", () => {
     // Dans le bandeau de la porte, sans cliquer sur « Voir la photo ».
     const photo = within(door).getByRole("img", { name: /^Photo du prédateur prise à / });
     expect(photo).toHaveAttribute("src", `${BASE}/alerts/44/image?token=jeton`);
+  });
+
+  it("charge le planning hebdomadaire et transmet la modification d'un jour (#70)", async () => {
+    const calls = setup();
+    const planning = await screen.findByRole("region", { name: "Planning de la porte" });
+
+    const saturday = (await within(planning).findByText("Samedi")).closest("div");
+    const closeAt = within(saturday as HTMLElement).getByLabelText(/^à/);
+    const save = within(planning).getByRole("button", { name: "Enregistrer" });
+    expect(save).toBeDisabled();
+
+    fireEvent.change(closeAt, { target: { value: "22:30" } });
+    expect(save).toBeEnabled();
+    await userEvent.click(save);
+
+    expect(await within(planning).findByText(/enregistré et transmis/)).toBeInTheDocument();
+    const putCall = calls.find((call) => call.method === "PUT");
+    expect(putCall?.url).toBe(`${BASE}/schedule`);
+    const sent = JSON.parse(putCall?.body ?? "{}") as { days: DaySchedule[] };
+    expect(sent.days[5]).toEqual({ weekday: 5, open_from: "07:00:00", close_at: "22:30:00" });
   });
 });

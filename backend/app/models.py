@@ -18,6 +18,7 @@ from sqlalchemy import (
     Integer,
     String,
     Time,
+    UniqueConstraint,
     Uuid,
     false,
     func,
@@ -124,6 +125,25 @@ class Coop(Base):
     camera_ok: Mapped[bool | None] = mapped_column(Boolean)
 
     owner: Mapped[User] = relationship(back_populates="coops")
+
+
+class DoorSchedule(Base):
+    """Horaire d'ouverture/fermeture par jour de la semaine (#70), un par poulailler et par jour.
+
+    0 = lundi ... 6 = dimanche (`date.weekday()`). Sans ligne pour un poulailler, l'horaire
+    par défaut (07:00-21:00 tous les jours) s'applique : pas besoin d'en créer à sa création.
+    """
+
+    __tablename__ = "door_schedules"
+    __table_args__ = (
+        UniqueConstraint("coop_id", "weekday", name="uq_door_schedules_coop_weekday"),
+    )
+
+    id: Mapped[int] = mapped_column(BigIntPK, primary_key=True, autoincrement=True)
+    coop_id: Mapped[str] = mapped_column(ForeignKey("coops.id", ondelete="CASCADE"), index=True)
+    weekday: Mapped[int] = mapped_column(Integer)
+    open_from: Mapped[time] = mapped_column(Time)
+    close_at: Mapped[time] = mapped_column(Time)
 
 
 class Event(Base):

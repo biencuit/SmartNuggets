@@ -8,7 +8,7 @@ from collections.abc import Callable
 from datetime import datetime
 
 from coop_app.controller import CoopController
-from mqtt_uplink.client import Command
+from mqtt_uplink.client import Command, ScheduleDay
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +24,7 @@ class CoopApp:
         self.poll_s = poll_s
         self._sleep = sleep
         self._commands: queue.Queue[Command] = queue.Queue()
+        self._schedules: queue.Queue[list[ScheduleDay]] = queue.Queue()
         self._stop = threading.Event()
 
     def submit(self, command: Command) -> None:
@@ -31,8 +32,19 @@ class CoopApp:
         il ne fait que déposer la commande, la boucle principale l'exécute."""
         self._commands.put(command)
 
+    def submit_schedule(self, days: list[ScheduleDay]) -> None:
+        """À passer comme `on_schedule` à MqttUplink : même principe que `submit`."""
+        self._schedules.put(days)
+
     def step(self) -> None:
-        """Un tour de boucle : commandes en attente, puis capteurs et règles."""
+        """Un tour de boucle : planning puis commandes en attente, puis capteurs et règles."""
+        while True:
+            try:
+                days = self._schedules.get_nowait()
+            except queue.Empty:
+                break
+            logger.info("Planning reçu du serveur")
+            self.controller.on_schedule(days)
         while True:
             try:
                 command = self._commands.get_nowait()

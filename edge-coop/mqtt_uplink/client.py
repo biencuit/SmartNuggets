@@ -45,6 +45,15 @@ class Command:
     issued_at: datetime
 
 
+@dataclass(frozen=True)
+class ScheduleDay:
+    """Un jour du planning reçu du serveur (#70) ; 0 = lundi ... 6 = dimanche."""
+
+    weekday: int
+    open_from: str  # "HH:MM" ou "HH:MM:SS"
+    close_at: str
+
+
 def utc_iso(timestamp: float) -> str:
     return datetime.fromtimestamp(timestamp, UTC).isoformat().replace("+00:00", "Z")
 
@@ -69,6 +78,7 @@ class MqttUplink:
         config: UplinkConfig,
         outbox: Outbox,
         on_command: Callable[[Command], None],
+        on_schedule: Callable[[list[ScheduleDay]], None] | None = None,
         client: Any = None,
         clock: Callable[[], float] = time.time,
         publish_timeout_s: float = 10.0,
@@ -76,6 +86,7 @@ class MqttUplink:
         self.config = config
         self.outbox = outbox
         self.on_command = on_command
+        self.on_schedule = on_schedule
         self.clock = clock
         self.publish_timeout_s = publish_timeout_s
         self.client = client if client is not None else create_paho_client(config)
@@ -234,6 +245,7 @@ class MqttUplink:
         self._connected = True
         logger.info("Connecté au broker %s", self.config.mqtt_host)
         client.subscribe(self.topic("commands"), qos=1)
+        client.subscribe(self.topic("schedule"), qos=1)  # retenu : reçu tout de suite si réglé
         client.publish(self.topic("status"), ONLINE, qos=1, retain=True)
         self._wakeup.set()  # vide la file accumulée pendant la coupure
 
@@ -246,6 +258,11 @@ class MqttUplink:
         )
 
     def _on_message(self, client: Any, userdata: Any, message: Any) -> None:
+        if message.topic == self.topic("schedule"):
+            days = parse_schedule(message.payload)
+            if days is not None and self.on_schedule is not None:
+                self.on_schedule(days)
+            return
         if message.topic != self.topic("commands"):
             return
         command = parse_command(message.payload)
@@ -287,3 +304,23 @@ def parse_command(payload: bytes) -> Command | None:
         logger.warning("CALIBRATE sans inside_count ignoré")
         return None
     return Command(command_id, action, inside_count, issued_at)
+
+
+def parse_schedule(payload: bytes) -> list[ScheduleDay] | None:
+    try:
+        data = json.loads(payload)
+        days = [
+            ScheduleDay(
+                weekday=int(day["weekday"]),
+                open_from=str(day["open_from"]),
+                close_at=str(day["close_at"]),
+            )
+            for day in data["days"]
+        ]
+    except (ValueError, KeyError, TypeError):
+        logger.warning("Planning illisible ignoré : %r", payload[:200])
+        return None
+    if {day.weekday for day in days} != set(range(7)):
+        logger.warning("Planning ignoré : il faut exactement les 7 jours (0 à 6)")
+        return None
+    return days

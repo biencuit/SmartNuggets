@@ -176,6 +176,17 @@ export function historyQueryString(query: HistoryQuery): string {
   return params.toString();
 }
 
+/** Horaire d'un jour de la semaine (0 = lundi ... 6 = dimanche), "HH:MM:SS" (#70). */
+export interface DaySchedule {
+  weekday: number;
+  open_from: string;
+  close_at: string;
+}
+
+export interface WeekSchedule {
+  days: DaySchedule[];
+}
+
 export type CommandAction = "OPEN" | "CLOSE" | "CALIBRATE";
 
 export interface CommandAccepted {
@@ -288,6 +299,14 @@ export const api = {
     apiFetch<CoopAlert>(`/coops/${encodeURIComponent(coopId)}/alerts/${String(alertId)}/ack`, {
       method: "POST",
       token,
+    }),
+  getSchedule: (token: string, coopId: string) =>
+    apiFetch<WeekSchedule>(`/coops/${encodeURIComponent(coopId)}/schedule`, { token }),
+  updateSchedule: (token: string, coopId: string, days: DaySchedule[]) =>
+    apiFetch<WeekSchedule>(`/coops/${encodeURIComponent(coopId)}/schedule`, {
+      method: "PUT",
+      token,
+      json: { days },
     }),
   sendCommand: (token: string, coopId: string, action: CommandAction, insideCount?: number) =>
     apiFetch<CommandAccepted>(`/coops/${encodeURIComponent(coopId)}/command`, {

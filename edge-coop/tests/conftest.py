@@ -9,7 +9,7 @@ from paho.mqtt.packettypes import PacketTypes
 from paho.mqtt.reasoncodes import ReasonCode
 
 from mqtt_uplink import MqttUplink, Outbox, UplinkConfig
-from mqtt_uplink.client import Command
+from mqtt_uplink.client import Command, ScheduleDay
 
 NOW = 1_793_692_800.0  # 2026-11-03T08:00:00Z
 
@@ -103,5 +103,17 @@ def received() -> list[Command]:
 
 
 @pytest.fixture
-def uplink(config, outbox, fake_client, received) -> MqttUplink:
-    return MqttUplink(config, outbox, received.append, client=fake_client, clock=lambda: NOW)
+def received_schedules() -> list[list[ScheduleDay]]:
+    return []
+
+
+@pytest.fixture
+def uplink(config, outbox, fake_client, received, received_schedules) -> MqttUplink:
+    return MqttUplink(
+        config,
+        outbox,
+        received.append,
+        on_schedule=received_schedules.append,
+        client=fake_client,
+        clock=lambda: NOW,
+    )
