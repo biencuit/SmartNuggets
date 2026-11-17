@@ -15,7 +15,13 @@ function toApi(time: string): string {
 }
 
 function sameDays(a: DaySchedule[], b: DaySchedule[]): boolean {
-  return a.every((day, i) => day.open_from === b[i].open_from && day.close_at === b[i].close_at);
+  return a.every((day) => {
+    const other = b.find((candidate) => candidate.weekday === day.weekday);
+    if (!other) {
+      return false;
+    }
+    return other.open_from === day.open_from && other.close_at === day.close_at;
+  });
 }
 
 /**
