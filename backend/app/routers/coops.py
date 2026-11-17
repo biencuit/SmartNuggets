@@ -23,10 +23,13 @@ from app.schemas import (
     CoopCreate,
     CoopRead,
     CoopStatus,
+    DaySchedule,
     EventRead,
     HabitsRead,
     HistoryCategory,
     HistoryPage,
+    WeekSchedule,
+    WeekScheduleUpdate,
 )
 from app.services.habits import DEFAULT_TIMEZONE, UnknownTimezoneError, load_timezone
 from app.services.sse import event_stream, format_sse
@@ -193,6 +196,42 @@ async def send_command(
         inside_count=command.inside_count,
         issued_at=command.issued_at,
     )
+
+
+@router.get(
+    "/{coop_id}/schedule",
+    response_model=WeekSchedule,
+    summary="Planning hebdomadaire de la porte",
+    description=(
+        "Un horaire d'ouverture et de fermeture par jour de la semaine (0 = lundi, "
+        "6 = dimanche). Sans planning personnalisé, l'horaire par défaut (07:00-21:00, "
+        "tous les jours) est renvoyé."
+    ),
+)
+async def get_schedule(coop_id: str, service: CoopServiceDep) -> WeekSchedule:
+    rows = await service.get_schedule(coop_id)
+    return WeekSchedule(days=[DaySchedule.model_validate(row) for row in rows])
+
+
+@router.put(
+    "/{coop_id}/schedule",
+    response_model=WeekSchedule,
+    summary="Régler le planning hebdomadaire de la porte",
+    description=(
+        "Remplace les 7 jours du planning et le transmet tout de suite au Raspberry Pi "
+        "par un message MQTT retenu par le broker : le Pi le reçoit dès qu'il se "
+        "(re)connecte, même s'il était hors ligne au moment de l'enregistrement."
+    ),
+    responses={
+        422: {"description": "Il ne manque ou ne doit pas y avoir exactement 7 jours (0 à 6)"},
+        503: {"description": "Broker MQTT injoignable : planning enregistré, pas encore transmis"},
+    },
+)
+async def update_schedule(
+    coop_id: str, data: WeekScheduleUpdate, service: CoopServiceDep
+) -> WeekSchedule:
+    rows = await service.update_schedule(coop_id, data)
+    return WeekSchedule(days=[DaySchedule.model_validate(row) for row in rows])
 
 
 @router.get(

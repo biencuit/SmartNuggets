@@ -1,9 +1,11 @@
-"""Topics MQTT : smartnuggets/{coop_id}/{telemetry|alerts|status|commands}.
+"""Topics MQTT : smartnuggets/{coop_id}/{telemetry|alerts|status|commands|schedule}.
 
 - telemetry (Pi -> serveur, QoS 1) : état de la porte, compteur, batterie, événement éventuel
 - alerts    (Pi -> serveur, QoS 1) : prédateur détecté, porte bloquée... (+ photo)
 - status    (Pi -> serveur, retenu) : "online" à la connexion, "offline" via le Last Will
-- commands  (serveur -> Pi, QoS 1) : OPEN, CLOSE, CALIBRATE
+- commands  (serveur -> Pi, QoS 1) : OPEN, CLOSE, CALIBRATE (ponctuelles, fenêtre de 60 s)
+- schedule  (serveur -> Pi, retenu) : planning hebdomadaire (#70), livré même si le Pi est
+            hors ligne au moment de l'enregistrement, dès qu'il se reconnecte
 """
 
 import re
@@ -18,6 +20,7 @@ class Channel(StrEnum):
     ALERTS = "alerts"
     STATUS = "status"
     COMMANDS = "commands"
+    SCHEDULE = "schedule"
 
 
 INCOMING = (Channel.TELEMETRY, Channel.ALERTS, Channel.STATUS)

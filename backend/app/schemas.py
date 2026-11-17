@@ -93,6 +93,28 @@ class AlertRead(ORMModel):
     created_at: UtcDatetime
 
 
+class DaySchedule(ORMModel):
+    """Horaire d'un jour de la semaine (0 = lundi ... 6 = dimanche)."""
+
+    weekday: int = Field(ge=0, le=6)
+    open_from: time
+    close_at: time
+
+
+class WeekSchedule(BaseModel):
+    days: list[DaySchedule]
+
+
+class WeekScheduleUpdate(BaseModel):
+    days: list[DaySchedule]
+
+    @model_validator(mode="after")
+    def _exactement_sept_jours(self) -> Self:
+        if sorted(day.weekday for day in self.days) != list(range(7)):
+            raise ValueError("Il faut exactement un horaire par jour de la semaine (0 à 6)")
+        return self
+
+
 class HistoryCategory(StrEnum):
     """Filtres de la page Historique (plusieurs à la fois ; aucun = tout)."""
 

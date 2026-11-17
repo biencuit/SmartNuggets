@@ -16,6 +16,7 @@ from app.services.auth_service import AuthService
 from app.services.broadcaster import Broadcaster
 from app.services.commands import CommandPublisher
 from app.services.coop_service import CoopService
+from app.services.schedule_publisher import SchedulePublisher
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
 
@@ -29,6 +30,10 @@ def get_command_publisher(request: Request) -> CommandPublisher:
     return request.app.state.command_publisher
 
 
+def get_schedule_publisher(request: Request) -> SchedulePublisher:
+    return request.app.state.schedule_publisher
+
+
 def get_broadcaster(request: Request) -> Broadcaster:
     return request.app.state.broadcaster
 
@@ -39,6 +44,7 @@ def get_app_settings(request: Request) -> Settings:
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 PublisherDep = Annotated[CommandPublisher, Depends(get_command_publisher)]
+SchedulePublisherDep = Annotated[SchedulePublisher, Depends(get_schedule_publisher)]
 BroadcasterDep = Annotated[Broadcaster, Depends(get_broadcaster)]
 SettingsDep = Annotated[Settings, Depends(get_app_settings)]
 BearerToken = Annotated[str | None, Depends(oauth2_scheme)]
@@ -87,18 +93,27 @@ def get_auth_service(session: SessionDep, settings: SettingsDep) -> AuthService:
 
 
 def get_coop_service(
-    session: SessionDep, publisher: PublisherDep, settings: SettingsDep, user: CurrentUser
+    session: SessionDep,
+    publisher: PublisherDep,
+    schedule_publisher: SchedulePublisherDep,
+    settings: SettingsDep,
+    user: CurrentUser,
 ) -> CoopService:
-    return CoopService(session, publisher, user.id, settings.device_offline_after_s)
+    return CoopService(
+        session, publisher, user.id, settings.device_offline_after_s, schedule_publisher
+    )
 
 
 def get_coop_service_header_or_query(
     session: SessionDep,
     publisher: PublisherDep,
+    schedule_publisher: SchedulePublisherDep,
     settings: SettingsDep,
     user: CurrentUserHeaderOrQuery,
 ) -> CoopService:
-    return CoopService(session, publisher, user.id, settings.device_offline_after_s)
+    return CoopService(
+        session, publisher, user.id, settings.device_offline_after_s, schedule_publisher
+    )
 
 
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]

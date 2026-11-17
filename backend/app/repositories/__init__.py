@@ -5,6 +5,7 @@ from app.repositories.coops import CoopRepository
 from app.repositories.devices import DeviceRepository
 from app.repositories.events import EventRepository
 from app.repositories.history import HistoryRepository
+from app.repositories.schedules import ScheduleRepository
 from app.repositories.users import UserRepository
 
 __all__ = [
@@ -13,5 +14,6 @@ __all__ = [
     "DeviceRepository",
     "EventRepository",
     "HistoryRepository",
+    "ScheduleRepository",
     "UserRepository",
 ]
