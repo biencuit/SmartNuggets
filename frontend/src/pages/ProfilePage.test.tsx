@@ -7,6 +7,11 @@ import { mockFetch, USER } from "../test/fetchMock";
 import { renderApp } from "../test/renderApp";
 
 const EXPORT = { exported_at: "2026-11-12T15:00:00Z", account: USER, coops: [] };
+const DEFAULT_NOTIFICATION_PREFS = {
+  push_enabled: false,
+  telegram_chat_id: null,
+  notify_critical_only: false,
+};
 
 function setup(deleteResponse: { status: number; body?: unknown } = { status: 204 }) {
   localStorage.setItem(TOKEN_KEY, "jeton");
@@ -14,6 +19,8 @@ function setup(deleteResponse: { status: number; body?: unknown } = { status: 20
     "GET /api/v1/auth/me": () => ({ body: USER }),
     "GET /api/v1/coops": () => ({ body: [] }),
     "GET /api/v1/auth/me/export": () => ({ body: EXPORT }),
+    "GET /api/v1/auth/me/notifications": () => ({ body: DEFAULT_NOTIFICATION_PREFS }),
+    "PATCH /api/v1/auth/me/notifications": (call) => ({ body: JSON.parse(call.body ?? "{}") }),
     "DELETE /api/v1/auth/me": () => deleteResponse,
   });
 }
@@ -60,7 +67,7 @@ describe("ProfilePage", () => {
     const button = await screen.findByRole("button", { name: "Supprimer mon compte" });
     await userEvent.type(screen.getByLabelText("Mot de passe"), "poulailler42");
     expect(button).toBeDisabled(); // tant que la case n'est pas cochée
-    await userEvent.click(screen.getByRole("checkbox"));
+    await userEvent.click(screen.getByRole("checkbox", { name: /comprends/ }));
     await userEvent.click(button);
 
     expect(
@@ -73,12 +80,30 @@ describe("ProfilePage", () => {
     expect(localStorage.getItem(TOKEN_KEY)).toBeNull();
   });
 
+  it("active les notifications Telegram et enregistre l'identifiant de chat", async () => {
+    const calls = setup();
+    renderApp("/compte");
+
+    await userEvent.click(await screen.findByRole("checkbox", { name: /notifications Telegram/ }));
+    await userEvent.type(screen.getByLabelText("Identifiant de chat Telegram"), "123456789");
+    await userEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    expect(await screen.findByText("Préférences enregistrées.")).toBeInTheDocument();
+    const patchCall = calls.find((call) => call.method === "PATCH");
+    expect(patchCall?.url).toBe("/api/v1/auth/me/notifications");
+    expect(JSON.parse(patchCall?.body ?? "{}")).toEqual({
+      push_enabled: true,
+      telegram_chat_id: "123456789",
+      notify_critical_only: false,
+    });
+  });
+
   it("garde le compte si le mot de passe est faux", async () => {
     setup({ status: 401, body: { detail: "Mot de passe incorrect" } });
     renderApp("/compte");
 
     await userEvent.type(await screen.findByLabelText("Mot de passe"), "pas-le-bon");
-    await userEvent.click(screen.getByRole("checkbox"));
+    await userEvent.click(screen.getByRole("checkbox", { name: /comprends/ }));
     await userEvent.click(screen.getByRole("button", { name: "Supprimer mon compte" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Mot de passe incorrect");

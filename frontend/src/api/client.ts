@@ -23,6 +23,13 @@ export interface Token {
   token_type: string;
 }
 
+/** Préférences de notification (#68) : canal Telegram, filtre par gravité. */
+export interface NotificationPrefs {
+  push_enabled: boolean;
+  telegram_chat_id: string | null;
+  notify_critical_only: boolean;
+}
+
 export interface Coop {
   id: string;
   name: string;
