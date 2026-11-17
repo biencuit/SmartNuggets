@@ -1,0 +1,36 @@
+# Configuration du jeu d'images SmartNuggets (US-DET-3)
+# L'ordre de la liste "classes" définit l'id de classe YOLO (0, 1, 2, ...).
+# Ne changez pas l'ordre une fois l'annotation commencée.
+
+classes:
+  - poule     # 0
+  - renard    # 1
+  - fouine    # 2
+  - chat      # 3
+  - humain    # 4
+  - chien     # 5
+  - oiseau    # 6
+  - rongeur   # 7
+
+# Les trois groupes demandés par l'US.
+# "Porte vide" = image sans aucun objet (fichier .txt vide) : elle compte dans le groupe "autre".
+groups:
+  poule: [poule]
+  predateur: [renard, fouine, chat]
+  autre: [humain, chien, oiseau, rongeur]
+
+thresholds:
+  min_images_per_main_class: 300      # images contenant chaque classe poule/prédateur
+  min_images_other_or_background: 200 # images "autres" + "porte vide"
+  min_real_ratio: 0.30                # part d'images venant du vrai dispositif
+  split_ratios: {train: 0.70, val: 0.20, test: 0.10}
+  split_tolerance: 0.05               # écart accepté sur la répartition
+  min_review_fraction: 0.05           # part d'images à relire par un second membre
+  min_review_count: 20
+  blur_threshold: 40                  # variance du Laplacien en dessous = image floue
+  near_duplicate_hamming: 3           # distance dHash <= valeur = quasi-doublon
+  min_resolution: [320, 240]
+
+# Dossiers de raw/ dont chaque image forme son propre groupe (sources publiques).
+# Pour le reste (raw/real/<session>/), un groupe = un dossier de session.
+per_image_groups: [public]
