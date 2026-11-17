@@ -11,6 +11,7 @@ from app.repositories import AlertRepository, CoopRepository
 from app.schemas import AlertRead
 from app.services.broadcaster import Broadcaster
 from app.services.coop_service import build_status
+from app.services.notifications import NotificationService
 from app.timeutils import ensure_utc, utcnow
 
 logger = logging.getLogger(__name__)
@@ -29,11 +30,13 @@ class DeviceWatchdog:
         broadcaster: Broadcaster,
         offline_after_s: int,
         interval_s: float = 60.0,
+        telegram_bot_token: str | None = None,
     ) -> None:
         self.sessionmaker = sessionmaker
         self.broadcaster = broadcaster
         self.offline_after_s = offline_after_s
         self.interval_s = interval_s
+        self.telegram_bot_token = telegram_bot_token
 
     async def run(self) -> None:
         while True:
@@ -50,6 +53,7 @@ class DeviceWatchdog:
         alerted: list[str] = []
         async with self.sessionmaker() as session:
             alerts = AlertRepository(session)
+            notifications = NotificationService(session, self.telegram_bot_token)
             for coop in await CoopRepository(session).list_silent_since(limit):
                 last_seen = ensure_utc(coop.last_seen_at) if coop.last_seen_at else limit
                 if await alerts.exists_since(coop.id, AlertType.DEVICE_OFFLINE, last_seen):
@@ -70,4 +74,5 @@ class DeviceWatchdog:
                 )
                 status = build_status(coop, self.offline_after_s, now)
                 self.broadcaster.publish(coop.id, "status", status.model_dump(mode="json"))
+                await notifications.notify_alert(coop.owner_id, alert)
         return alerted

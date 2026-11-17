@@ -39,6 +39,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             broadcaster,
             settings.device_offline_after_s,
             settings.health_check_interval_s,
+            settings.telegram_bot_token,
         )
         retention = RetentionJob(
             sessionmaker,

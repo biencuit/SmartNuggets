@@ -14,6 +14,7 @@ from app.repositories import AlertRepository, CoopRepository, EventRepository
 from app.schemas import AlertRead, EventRead
 from app.services.broadcaster import Broadcaster
 from app.services.coop_service import DEFAULT_OFFLINE_AFTER_S, build_status
+from app.services.notifications import NotificationService
 from app.timeutils import utcnow
 
 logger = logging.getLogger(__name__)
@@ -30,6 +31,7 @@ class IngestionService:
         max_image_bytes: int = 2_000_000,
         offline_after_s: int = DEFAULT_OFFLINE_AFTER_S,
         low_battery_threshold: int = 20,
+        telegram_bot_token: str | None = None,
     ) -> None:
         self.session = session
         self.broadcaster = broadcaster
@@ -40,6 +42,7 @@ class IngestionService:
         self.coops = CoopRepository(session)
         self.events = EventRepository(session)
         self.alerts = AlertRepository(session)
+        self.notifications = NotificationService(session, telegram_bot_token)
 
     async def _get_coop(self, coop_id: str) -> Coop | None:
         coop = await self.coops.get(coop_id)
@@ -97,6 +100,7 @@ class IngestionService:
             )
         if low_battery_alert is not None:
             self._publish_alert(low_battery_alert)
+            await self.notifications.notify_alert(coop.owner_id, low_battery_alert)
 
     async def handle_alert(self, coop_id: str, message: AlertMessage) -> None:
         coop = await self._get_coop(coop_id)
@@ -121,6 +125,7 @@ class IngestionService:
                 alert.image_url = f"/api/v1/coops/{coop_id}/alerts/{alert.id}/image"
         await self.session.commit()
         self._publish_alert(alert)
+        await self.notifications.notify_alert(coop.owner_id, alert)
 
     async def handle_status(self, coop_id: str, online: bool) -> None:
         coop = await self._get_coop(coop_id)
