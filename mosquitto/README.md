@@ -8,6 +8,7 @@ Relie les Raspberry Pi des poulaillers (connectés à Internet par câble RJ45) 
 | `smartnuggets/{coop_id}/alerts` | Pi → API, QoS 1 | alerte (prédateur, porte bloquée…) + photo JPEG/WebP en base64 |
 | `smartnuggets/{coop_id}/status` | Pi → API, retenu | `online` à la connexion, `offline` via le Last Will |
 | `smartnuggets/{coop_id}/commands` | API → Pi, QoS 1 | `OPEN`, `CLOSE`, `CALIBRATE` ; ignorée par le Pi après 60 s |
+| `smartnuggets/{coop_id}/schedule` | API → Pi, retenu | planning hebdomadaire (#70) ; livré même si le Pi était hors ligne à l'enregistrement |
 
 ## Sécurité
 
