@@ -74,6 +74,8 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255))
     telegram_chat_id: Mapped[str | None] = mapped_column(String(64))
     push_enabled: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    # Si vrai, seules les alertes CRITICAL sont envoyées (les WARNING restent dans l'application).
+    notify_critical_only: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     coops: Mapped[list["Coop"]] = relationship(back_populates="owner")
