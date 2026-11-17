@@ -20,12 +20,22 @@ charger avant de le lancer (`set -a; . ./.env; set +a; python -m coop_app`).
 - **Commandes** : une commande plus vieille que `COMMAND_MAX_AGE_S` (60 s) est ignorée, pour que
   la porte ne s'ouvre pas des heures après un clic ; une commande reçue deux fois n'est
   exécutée qu'une fois.
+- **Planning** (#70) : le planning hebdomadaire réglé depuis l'application arrive en message
+  MQTT **retenu** (`smartnuggets/{coop_id}/schedule`) : contrairement aux commandes, il est
+  reçu même s'il a été réglé pendant que le Pi était hors ligne, dès qu'il se reconnecte.
+  `CoopController` garde un horaire par jour de la semaine (`on_schedule`), repli sur l'horaire
+  fixe (`OPEN_FROM`/`CLOSE_AT`) tant que le serveur n'en a réglé aucun.
 
 ```python
 from mqtt_uplink import MqttUplink, Outbox, UplinkConfig
 
 config = UplinkConfig.from_env()          # voir .env.example
-uplink = MqttUplink(config, Outbox(config.outbox_path), on_command=file_de_commandes.put)
+uplink = MqttUplink(
+    config,
+    Outbox(config.outbox_path),
+    on_command=file_de_commandes.put,
+    on_schedule=file_de_plannings.put,
+)
 uplink.start()
 
 uplink.send_event("HEN_ENTRY", inside_count=9, trigger_source="AI_AUTO", ai_confidence=0.93)
@@ -37,8 +47,9 @@ uplink.send_telemetry(battery_level=76, camera_ok=True)   # battement de cœur
 état de la caméra). Sans nouvelles pendant 15 minutes, l'application affiche le poulailler
 « hors ligne » et crée une alerte.
 
-`on_command` est appelé depuis le thread réseau : il doit rendre la main tout de suite
-(par exemple en déposant la commande dans une file lue par le contrôleur de porte).
+`on_command` et `on_schedule` sont appelés depuis le thread réseau : ils doivent rendre la
+main tout de suite (par exemple en déposant la commande ou le planning dans une file lue par
+le contrôleur de porte — voir `coop_app.app.CoopApp`).
 
 Démo sans le reste du code : `python -m mqtt_uplink --interval 30`.
 
