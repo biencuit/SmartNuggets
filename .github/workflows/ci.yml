@@ -96,6 +96,26 @@ jobs:
           name: couverture-backend
           path: backend/coverage.xml
 
+  backend-prod-deps:
+    # Les autres jobs installent aussi les outils de dev (pytest, httpx...). Ici on installe
+    # seulement les dépendances de prod, comme l'image Docker du VPS : si le code importe un
+    # paquet oublié dans pyproject.toml, la PR échoue au lieu de casser le site.
+    name: Backend - l'API démarre avec les dépendances de prod
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+      - name: Installer seulement les dépendances de prod
+        run: pip install ./backend
+      - name: Charger l'API
+        # On lance Python hors du dossier backend/ pour utiliser le paquet installé.
+        working-directory: ${{ runner.temp }}
+        run: python -c "from app.main import create_app; create_app()"
+
   edge-tests:
     name: Raspberry Pi - tests
     runs-on: ubuntu-latest
