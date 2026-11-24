@@ -75,7 +75,12 @@ export interface CoopEvent {
 }
 
 export type AlertType =
-  "PREDATOR_DETECTED" | "MISSING_HEN" | "DOOR_BLOCKED" | "LOW_BATTERY" | "DEVICE_OFFLINE";
+  | "PREDATOR_DETECTED"
+  | "MISSING_HEN"
+  | "HEN_AFTER_CLOSING"
+  | "DOOR_BLOCKED"
+  | "LOW_BATTERY"
+  | "DEVICE_OFFLINE";
 
 export type Severity = "WARNING" | "CRITICAL";
 
