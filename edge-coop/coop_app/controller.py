@@ -5,6 +5,8 @@ Règles (dans l'ordre de priorité) :
    `predator_lock_s`, même sur commande de l'application. Alerte avec photo, réduite
    à moins de 200 Ko (`coop_app.photo`). (#22, #23)
 2. Nuit (hors de la plage horaire) → la porte se ferme et ne s'ouvre plus seule. (#14)
+   Une poule vue devant la porte la nuit la laisse fermée et envoie une alerte avec photo
+   (`HEN_AFTER_CLOSING`), au plus une fois par `late_hen_alert_every_s`.
 3. Poule vue devant la porte, de jour → la porte s'ouvre ; elle se referme quand plus
    aucune poule n'est passée depuis `auto_close_after_s`. (#10)
 4. Commandes de l'application : OPEN, CLOSE, CALIBRATE (correction du compteur). (#13)
@@ -81,6 +83,7 @@ class CoopController:
         self._last_activity = 0.0
         self._last_heartbeat: float | None = None
         self._motion_before = False
+        self._late_hen_alert_at: float | None = None
         # Planning par jour de la semaine (0 = lundi ... 6 = dimanche) ; le même horaire fixe
         # (variables d'environnement) pour les 7 jours tant que le serveur n'en a pas réglé un.
         self._weekly_schedule: dict[int, Schedule] = dict.fromkeys(range(7), config.schedule)
@@ -158,6 +161,9 @@ class CoopController:
         hen = best(detections, Label.HEN, self.config.hen_threshold)
         if hen is None:
             return
+        if not self._schedule_for(self.now()).is_day(self.now()):
+            self._on_late_hen(hen.confidence, frame.jpeg)
+            return
         if self.door.state == DoorState.CLOSED and self._may_open(Source.AI_AUTO):
             logger.info("Poule devant la porte (confiance %.2f) : ouverture", hen.confidence)
             self._open(Source.AI_AUTO, ai_confidence=hen.confidence)
@@ -173,6 +179,19 @@ class CoopController:
         )
         if self.door.state != DoorState.CLOSED:
             self._close(Source.FAILSAFE)
+
+    def _on_late_hen(self, confidence: float, jpeg: bytes) -> None:
+        """Poule devant la porte après l'heure de fermeture : la porte reste fermée."""
+        t = self.clock()
+        last = self._late_hen_alert_at
+        if last is not None and t - last < self.config.late_hen_alert_every_s:
+            return
+        self._late_hen_alert_at = t
+        logger.warning("Poule devant la porte après la fermeture (%.2f) : alerte", confidence)
+        photo = reduce_jpeg(jpeg, self.config.photo_max_bytes)
+        self.uplink.send_alert(
+            "HEN_AFTER_CLOSING", "CRITICAL", ai_confidence=confidence, image=photo
+        )
 
     # ------------------------------------------------------------------ commandes
 

@@ -28,6 +28,7 @@ class AppConfig:
     predator_lock_s: float = 300.0  # porte verrouillée après un prédateur
     photo_max_bytes: int = 200_000  # photo envoyée avec l'alerte prédateur
     auto_close_after_s: float = 60.0  # refermer quand plus aucune poule ne passe
+    late_hen_alert_every_s: float = 60.0  # poule vue après la fermeture : une alerte max par…
     heartbeat_s: float = 60.0
     poll_s: float = 0.05  # lecture des capteurs (20 fois par seconde)
     motor_pins: tuple[int, ...] = (5, 6, 13, 19)
@@ -61,6 +62,7 @@ class AppConfig:
             predator_lock_s=float(get("PREDATOR_LOCK_S", d.predator_lock_s)),
             photo_max_bytes=int(get("PHOTO_MAX_BYTES", d.photo_max_bytes)),
             auto_close_after_s=float(get("AUTO_CLOSE_AFTER_S", d.auto_close_after_s)),
+            late_hen_alert_every_s=float(get("LATE_HEN_ALERT_EVERY_S", d.late_hen_alert_every_s)),
             heartbeat_s=float(get("HEARTBEAT_S", d.heartbeat_s)),
             motor_pins=_pins(get("MOTOR_PINS", "5,6,13,19")),
             top_pin=int(get("TOP_PIN", d.top_pin)),
