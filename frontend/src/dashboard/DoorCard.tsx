@@ -40,7 +40,8 @@ export function DoorCard({
   predator: CoopAlert | undefined;
   /** Adresse de la photo d'une alerte : celle du prédateur s'affiche tout de suite (#23). */
   imageUrl?: (alertId: number) => string;
-  onCommand: (action: DoorAction) => Promise<void>;
+  /** `force` : « Ouvrir quand même » malgré le prédateur (lève le verrouillage du Pi). */
+  onCommand: (action: DoorAction, force?: boolean) => Promise<void>;
 }) {
   // État de la porte au moment de l'envoi : la commande reste « en attente » tant qu'il ne change pas.
   const [sentFrom, setSentFrom] = useState<CoopStatus["door_state"] | null>(null);
@@ -60,12 +61,12 @@ export function DoorCard({
   const pending = sentFrom !== null;
   const disabled = !status.online || sending || moving;
 
-  async function send(action: DoorAction) {
+  async function send(action: DoorAction, force = false) {
     setConfirming(false);
     setSending(true);
     setError(null);
     try {
-      await onCommand(action);
+      await onCommand(action, force);
       setSentFrom(status.door_state);
     } catch (err) {
       setError(err instanceof Error ? err.message : "La commande n'a pas pu être envoyée.");
@@ -131,7 +132,7 @@ export function DoorCard({
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={() => void send("OPEN")}
+              onClick={() => void send("OPEN", true)}
               className="rounded-lg bg-red-700 px-4 py-2 font-medium text-white hover:bg-red-800"
             >
               Ouvrir quand même

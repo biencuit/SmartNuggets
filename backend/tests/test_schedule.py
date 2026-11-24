@@ -22,7 +22,7 @@ async def test_planning_par_defaut_sans_personnalisation(client: AsyncClient, co
     response = await client.get(SCHEDULE)
 
     assert response.status_code == 200
-    assert response.json() == {"days": DEFAULT_WEEK}
+    assert response.json() == {"days": DEFAULT_WEEK, "predator_lock_s": 300}
 
 
 async def test_regler_le_planning_le_sauvegarde_et_le_transmet(
@@ -31,9 +31,9 @@ async def test_regler_le_planning_le_sauvegarde_et_le_transmet(
     response = await client.put(SCHEDULE, json={"days": custom_week()})
 
     assert response.status_code == 200
-    assert response.json() == {"days": custom_week()}
+    assert response.json() == {"days": custom_week(), "predator_lock_s": 300}
     # Relu depuis la base (pas seulement renvoyé par l'appel précédent).
-    assert (await client.get(SCHEDULE)).json() == {"days": custom_week()}
+    assert (await client.get(SCHEDULE)).json() == {"days": custom_week(), "predator_lock_s": 300}
     # Transmis tout de suite au Raspberry Pi (message retenu, publisher en mémoire pour les tests).
     sent = app.state.schedule_publisher.sent["coop_01"]
     assert sent[5][0] == 5  # samedi
@@ -58,3 +58,25 @@ async def test_planning_d_un_poulailler_inconnu_renvoie_404(client: AsyncClient)
     url = "/api/v1/coops/inconnu/schedule"
     assert (await client.get(url)).status_code == 404
     assert (await client.put(url, json={"days": DEFAULT_WEEK})).status_code == 404
+
+
+async def test_regler_le_verrouillage_apres_un_predateur(
+    app: FastAPI, client: AsyncClient, coop: Coop
+) -> None:
+    response = await client.put(SCHEDULE, json={"days": DEFAULT_WEEK, "predator_lock_s": 5})
+
+    assert response.status_code == 200
+    assert response.json()["predator_lock_s"] == 5
+    assert (await client.get(SCHEDULE)).json()["predator_lock_s"] == 5
+    # Transmis au Pi avec le planning.
+    assert app.state.schedule_publisher.predator_lock_s["coop_01"] == 5
+    # Absent de la requête : la valeur enregistrée est gardée (et retransmise).
+    await client.put(SCHEDULE, json={"days": custom_week()})
+    assert (await client.get(SCHEDULE)).json()["predator_lock_s"] == 5
+    assert app.state.schedule_publisher.predator_lock_s["coop_01"] == 5
+
+
+async def test_verrouillage_hors_limites_refuse(client: AsyncClient, coop: Coop) -> None:
+    for value in (-1, 3601):
+        response = await client.put(SCHEDULE, json={"days": DEFAULT_WEEK, "predator_lock_s": value})
+        assert response.status_code == 422

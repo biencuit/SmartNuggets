@@ -113,12 +113,22 @@ class DaySchedule(ORMModel):
     close_at: time
 
 
+PREDATOR_LOCK_DESCRIPTION = (
+    "Secondes pendant lesquelles la porte refuse de s'ouvrir seule après un prédateur "
+    "(0 : pas de verrouillage). Une ouverture forcée depuis l'application reste possible."
+)
+
+
 class WeekSchedule(BaseModel):
     days: list[DaySchedule]
+    predator_lock_s: int = Field(description=PREDATOR_LOCK_DESCRIPTION)
 
 
 class WeekScheduleUpdate(BaseModel):
     days: list[DaySchedule]
+    predator_lock_s: int | None = Field(
+        default=None, ge=0, le=3600, description=PREDATOR_LOCK_DESCRIPTION + " Absent : inchangé."
+    )
 
     @model_validator(mode="after")
     def _exactement_sept_jours(self) -> Self:
@@ -205,6 +215,10 @@ class CommandRequest(BaseModel):
     inside_count: int | None = Field(
         default=None, ge=0, description="Obligatoire pour CALIBRATE : nombre réel de poules dedans"
     )
+    force: bool = Field(
+        default=False,
+        description="OPEN seulement : ouvrir même si un prédateur vient d'être vu (verrouillage)",
+    )
 
     @model_validator(mode="after")
     def check_inside_count(self) -> Self:
@@ -212,6 +226,8 @@ class CommandRequest(BaseModel):
             raise ValueError("inside_count est obligatoire pour l'action CALIBRATE")
         if self.action is not CommandAction.CALIBRATE and self.inside_count is not None:
             raise ValueError("inside_count n'est accepté que pour l'action CALIBRATE")
+        if self.force and self.action is not CommandAction.OPEN:
+            raise ValueError("force n'est accepté que pour l'action OPEN")
         return self
 
 

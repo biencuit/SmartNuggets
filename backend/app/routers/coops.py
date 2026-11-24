@@ -210,7 +210,10 @@ async def send_command(
 )
 async def get_schedule(coop_id: str, service: CoopServiceDep) -> WeekSchedule:
     rows = await service.get_schedule(coop_id)
-    return WeekSchedule(days=[DaySchedule.model_validate(row) for row in rows])
+    return WeekSchedule(
+        days=[DaySchedule.model_validate(row) for row in rows],
+        predator_lock_s=await service.get_predator_lock_s(coop_id),
+    )
 
 
 @router.put(
@@ -231,7 +234,10 @@ async def update_schedule(
     coop_id: str, data: WeekScheduleUpdate, service: CoopServiceDep
 ) -> WeekSchedule:
     rows = await service.update_schedule(coop_id, data)
-    return WeekSchedule(days=[DaySchedule.model_validate(row) for row in rows])
+    return WeekSchedule(
+        days=[DaySchedule.model_validate(row) for row in rows],
+        predator_lock_s=await service.get_predator_lock_s(coop_id),
+    )
 
 
 @router.get(

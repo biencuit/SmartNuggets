@@ -190,6 +190,8 @@ export interface DaySchedule {
 
 export interface WeekSchedule {
   days: DaySchedule[];
+  /** Secondes pendant lesquelles la porte refuse de s'ouvrir seule après un prédateur. */
+  predator_lock_s: number;
 }
 
 export type CommandAction = "OPEN" | "CLOSE" | "CALIBRATE";
@@ -307,17 +309,28 @@ export const api = {
     }),
   getSchedule: (token: string, coopId: string) =>
     apiFetch<WeekSchedule>(`/coops/${encodeURIComponent(coopId)}/schedule`, { token }),
-  updateSchedule: (token: string, coopId: string, days: DaySchedule[]) =>
+  updateSchedule: (token: string, coopId: string, days: DaySchedule[], predatorLockS: number) =>
     apiFetch<WeekSchedule>(`/coops/${encodeURIComponent(coopId)}/schedule`, {
       method: "PUT",
       token,
-      json: { days },
+      json: { days, predator_lock_s: predatorLockS },
     }),
-  sendCommand: (token: string, coopId: string, action: CommandAction, insideCount?: number) =>
+  /** `force` (OPEN) : ouvrir même si un prédateur vient d'être vu (« Ouvrir quand même »). */
+  sendCommand: (
+    token: string,
+    coopId: string,
+    action: CommandAction,
+    insideCount?: number,
+    force = false,
+  ) =>
     apiFetch<CommandAccepted>(`/coops/${encodeURIComponent(coopId)}/command`, {
       method: "POST",
       token,
-      json: insideCount === undefined ? { action } : { action, inside_count: insideCount },
+      json: {
+        action,
+        ...(insideCount === undefined ? {} : { inside_count: insideCount }),
+        ...(force ? { force: true } : {}),
+      },
     }),
   /** `<img>` ne peut pas envoyer d'en-tête : le jeton passe en paramètre. */
   alertImageUrl: (token: string, coopId: string, alertId: number) =>

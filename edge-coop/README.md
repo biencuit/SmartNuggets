@@ -122,7 +122,9 @@ catégorie (`hen`, `predator`, `other`), une confiance entre 0 et 1 et un nom li
 l'ordre de priorité :
 
 1. **Prédateur vu** : la porte se ferme si elle est ouverte et refuse de s'ouvrir pendant
-   `PREDATOR_LOCK_S` (même sur commande de l'application). Alerte avec photo.
+   `PREDATOR_LOCK_S`, ou la durée réglée dans l'application (carte Planning, envoyée avec
+   le planning). Une commande OPEN de l'application est refusée pendant ce temps, sauf
+   « Ouvrir quand même » (`force`), qui lève le verrouillage. Alerte avec photo.
    La photo est réduite avant l'envoi (`coop_app/photo.py`) : 640 px de côté au plus et
    moins de `PHOTO_MAX_BYTES` (200 Ko par défaut). Si elle est illisible ou impossible à
    réduire, l'alerte part quand même, sans photo.

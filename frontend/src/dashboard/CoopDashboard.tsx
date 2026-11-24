@@ -90,9 +90,9 @@ export function CoopDashboard({ coopId, name }: { coopId: string; name: string }
   }, [coopId, token, logout]);
 
   const sendCommand = useCallback(
-    async (action: "OPEN" | "CLOSE" | "CALIBRATE", insideCount?: number) => {
+    async (action: "OPEN" | "CLOSE" | "CALIBRATE", insideCount?: number, force = false) => {
       if (!token) return;
-      await api.sendCommand(token, coopId, action, insideCount);
+      await api.sendCommand(token, coopId, action, insideCount, force);
     },
     [token, coopId],
   );
@@ -134,7 +134,7 @@ export function CoopDashboard({ coopId, name }: { coopId: string; name: string }
               status={status}
               predator={recentPredator(alerts ?? [], now)}
               imageUrl={token ? (alertId) => api.alertImageUrl(token, coopId, alertId) : undefined}
-              onCommand={(action) => sendCommand(action)}
+              onCommand={(action, force) => sendCommand(action, undefined, force)}
             />
             <HenCountCard
               status={status}

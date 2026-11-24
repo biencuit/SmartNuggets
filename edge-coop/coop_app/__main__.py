@@ -52,6 +52,7 @@ def main() -> None:
         outbox,
         on_command=lambda c: app and app.submit(c),
         on_schedule=lambda days: app and app.submit_schedule(days),
+        on_predator_lock=lambda seconds: app and app.submit_predator_lock(seconds),
     )
     controller = CoopController(config, devices, detector, uplink, time.monotonic, now)
     app = CoopApp(controller, config.poll_s)

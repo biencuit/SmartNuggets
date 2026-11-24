@@ -43,6 +43,7 @@ class Command:
     action: str
     inside_count: int | None
     issued_at: datetime
+    force: bool = False  # OPEN : ouvrir même pendant le verrouillage après un prédateur
 
 
 @dataclass(frozen=True)
@@ -79,6 +80,7 @@ class MqttUplink:
         outbox: Outbox,
         on_command: Callable[[Command], None],
         on_schedule: Callable[[list[ScheduleDay]], None] | None = None,
+        on_predator_lock: Callable[[int], None] | None = None,
         client: Any = None,
         clock: Callable[[], float] = time.time,
         publish_timeout_s: float = 10.0,
@@ -87,6 +89,7 @@ class MqttUplink:
         self.outbox = outbox
         self.on_command = on_command
         self.on_schedule = on_schedule
+        self.on_predator_lock = on_predator_lock
         self.clock = clock
         self.publish_timeout_s = publish_timeout_s
         self.client = client if client is not None else create_paho_client(config)
@@ -262,6 +265,9 @@ class MqttUplink:
             days = parse_schedule(message.payload)
             if days is not None and self.on_schedule is not None:
                 self.on_schedule(days)
+            lock_s = parse_predator_lock(message.payload)
+            if lock_s is not None and self.on_predator_lock is not None:
+                self.on_predator_lock(lock_s)
             return
         if message.topic != self.topic("commands"):
             return
@@ -287,6 +293,7 @@ def parse_command(payload: bytes) -> Command | None:
         data = json.loads(payload)
         action = data["action"]
         inside_count = data.get("inside_count")
+        force = data.get("force", False) is True
         issued_at = datetime.fromisoformat(data["issued_at"])
         command_id = str(data["command_id"])
     except (ValueError, KeyError, TypeError):
@@ -303,7 +310,21 @@ def parse_command(payload: bytes) -> Command | None:
     if action == "CALIBRATE" and inside_count is None:
         logger.warning("CALIBRATE sans inside_count ignoré")
         return None
-    return Command(command_id, action, inside_count, issued_at)
+    return Command(command_id, action, inside_count, issued_at, force=force and action == "OPEN")
+
+
+def parse_predator_lock(payload: bytes) -> int | None:
+    """Durée de verrouillage après un prédateur, envoyée avec le planning (réglage de l'appli)."""
+    try:
+        value = json.loads(payload).get("predator_lock_s")
+    except (ValueError, AttributeError):
+        return None
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 3600:
+        logger.warning("predator_lock_s invalide ignoré : %r", value)
+        return None
+    return value
 
 
 def parse_schedule(payload: bytes) -> list[ScheduleDay] | None:

@@ -3,7 +3,13 @@ import json
 from datetime import UTC, datetime, timedelta
 
 from mqtt_uplink import MqttUplink, Outbox, UplinkConfig
-from mqtt_uplink.client import Command, ScheduleDay, parse_command, parse_schedule
+from mqtt_uplink.client import (
+    Command,
+    ScheduleDay,
+    parse_command,
+    parse_predator_lock,
+    parse_schedule,
+)
 
 from .conftest import NOW, FakePahoClient
 
@@ -191,3 +197,32 @@ def test_config_depuis_l_environnement() -> None:
     assert config.mqtt_port == 8883
     assert config.mqtt_tls is False
     assert config.mqtt_ca_cert is None
+
+
+def test_commande_open_forcee() -> None:
+    issued = "2026-11-03T08:00:00Z"
+    forced = parse_command(
+        json.dumps(
+            {"command_id": "1", "action": "OPEN", "issued_at": issued, "force": True}
+        ).encode()
+    )
+    assert forced is not None and forced.force is True
+    normal = parse_command(
+        json.dumps({"command_id": "2", "action": "OPEN", "issued_at": issued}).encode()
+    )
+    assert normal is not None and normal.force is False
+    close = parse_command(
+        json.dumps(
+            {"command_id": "3", "action": "CLOSE", "issued_at": issued, "force": True}
+        ).encode()
+    )
+    assert close is not None and close.force is False  # force ne vaut que pour OPEN
+
+
+def test_parse_predator_lock() -> None:
+    assert parse_predator_lock(json.dumps({"days": week(), "predator_lock_s": 5}).encode()) == 5
+    assert parse_predator_lock(json.dumps({"days": week()}).encode()) is None  # ancien serveur
+    assert parse_predator_lock(b"pas du json") is None
+    for invalid in (-1, 3601, "10", True):
+        payload = json.dumps({"days": week(), "predator_lock_s": invalid}).encode()
+        assert parse_predator_lock(payload) is None
