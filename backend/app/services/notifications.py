@@ -20,6 +20,7 @@ TELEGRAM_API_URL = "https://api.telegram.org/bot{token}/sendMessage"
 ALERT_LABELS = {
     "PREDATOR_DETECTED": "Prédateur détecté",
     "MISSING_HEN": "Poule manquante à la fermeture",
+    "HEN_AFTER_CLOSING": "Poule devant la porte après la fermeture",
     "DOOR_BLOCKED": "Porte bloquée",
     "LOW_BATTERY": "Batterie faible",
     "DEVICE_OFFLINE": "Poulailler hors ligne",
