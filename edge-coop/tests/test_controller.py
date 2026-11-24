@@ -137,6 +137,41 @@ def test_predateur_alerte_avec_photo_et_porte_verrouillee(env):
     assert controller.door.state == DoorState.OPEN
 
 
+def test_ouverture_forcee_depuis_l_application_malgre_le_predateur(env):
+    controller, devices, detector, uplink, clock = env
+    detector.show(Label.PREDATOR, 0.8, "renard")
+    mouvement(controller, devices)
+    clock.t += 5
+    controller.on_command("OPEN")  # refusée : verrouillage
+    assert controller.door.state == DoorState.CLOSED
+    controller.on_command("OPEN", force=True)  # « Ouvrir quand même »
+    assert controller.door.state == DoorState.OPEN
+    assert not controller.predator_locked()
+
+
+def test_duree_de_verrouillage_reglee_dans_l_application(env):
+    controller, devices, detector, uplink, clock = env
+    controller.set_predator_lock_s(10)
+    detector.show(Label.PREDATOR, 0.8, "renard")
+    mouvement(controller, devices)
+    clock.t += 9
+    assert controller.predator_locked()
+    clock.t += 2
+    assert not controller.predator_locked()
+    detector.show(Label.HEN, 0.9)
+    mouvement(controller, devices)
+    assert controller.door.state == DoorState.OPEN
+
+
+def test_raccourcir_le_verrouillage_en_cours(env):
+    controller, devices, detector, uplink, clock = env
+    detector.show(Label.PREDATOR, 0.8, "renard")
+    mouvement(controller, devices)  # 300 s par défaut dans ce test
+    clock.t += 20
+    controller.set_predator_lock_s(15)  # le nouveau réglage s'applique tout de suite
+    assert not controller.predator_locked()
+
+
 def predator_alert(uplink):
     return next(fields for kind, name, fields in uplink.sent if name == "PREDATOR_DETECTED")
 

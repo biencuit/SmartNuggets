@@ -2,7 +2,8 @@
 
 Règles (dans l'ordre de priorité) :
 1. Prédateur vu → la porte se ferme si elle est ouverte, et refuse de s'ouvrir pendant
-   `predator_lock_s`, même sur commande de l'application. Alerte avec photo, réduite
+   `predator_lock_s` (réglable dans l'application). Seule une ouverture forcée depuis
+   l'application (« Ouvrir quand même », `force`) lève ce verrouillage. Alerte avec photo, réduite
    à moins de 200 Ko (`coop_app.photo`). (#22, #23)
 2. Nuit (hors de la plage horaire) → la porte se ferme et ne s'ouvre plus seule. (#14)
    Une poule vue devant la porte la nuit la laisse fermée et envoie une alerte avec photo
@@ -79,6 +80,8 @@ class CoopController:
         )
         self.camera_ok = True
         self._predator_until = 0.0
+        # Réglable dans l'application (envoyé avec le planning) ; PREDATOR_LOCK_S sinon.
+        self.predator_lock_s = config.predator_lock_s
         self._opened_for_hen_at: float | None = None
         self._last_activity = 0.0
         self._last_heartbeat: float | None = None
@@ -93,6 +96,12 @@ class CoopController:
         self._weekly_schedule = {
             day.weekday: Schedule.parse(day.open_from, day.close_at) for day in days
         }
+
+    def set_predator_lock_s(self, seconds: float) -> None:
+        """Nouvelle durée de verrouillage ; un verrouillage en cours est raccourci d'autant."""
+        if self._predator_until:
+            self._predator_until -= self.predator_lock_s - seconds
+        self.predator_lock_s = seconds
 
     def _schedule_for(self, now: datetime) -> Schedule:
         return self._weekly_schedule.get(now.weekday(), self.config.schedule)
@@ -171,7 +180,7 @@ class CoopController:
 
     def _on_predator(self, confidence: float, jpeg: bytes, name: str) -> None:
         logger.warning("Prédateur détecté (%s, %.2f) : porte verrouillée", name, confidence)
-        self._predator_until = self.clock() + self.config.predator_lock_s
+        self._predator_until = self.clock() + self.predator_lock_s
         # L'alerte part avant la fermeture (qui prend plusieurs secondes), même sans photo.
         photo = reduce_jpeg(jpeg, self.config.photo_max_bytes)
         self.uplink.send_alert(
@@ -195,9 +204,18 @@ class CoopController:
 
     # ------------------------------------------------------------------ commandes
 
-    def on_command(self, action: str, inside_count: int | None = None) -> None:
-        """Commande reçue de l'application (déjà filtrée par `mqtt_uplink`)."""
+    def on_command(
+        self, action: str, inside_count: int | None = None, *, force: bool = False
+    ) -> None:
+        """Commande reçue de l'application (déjà filtrée par `mqtt_uplink`).
+
+        `force` (OPEN) : l'éleveur a confirmé « Ouvrir quand même » malgré un prédateur vu
+        récemment ; le verrouillage est levé.
+        """
         if action == "OPEN":
+            if force and self.predator_locked():
+                logger.warning("Ouverture forcée depuis l'application malgré le prédateur")
+                self._predator_until = 0.0
             if self._may_open(Source.MANUAL_APP):
                 self._open(Source.MANUAL_APP)
                 self._opened_for_hen_at = None  # ouverte à la main : pas de fermeture auto
