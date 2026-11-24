@@ -102,6 +102,23 @@ async def test_commande_manuelle_transmise(app: FastAPI, client: AsyncClient, co
     assert str(sent[0].command_id) == body["command_id"]
 
 
+async def test_ouverture_forcee_apres_un_predateur(
+    app: FastAPI, client: AsyncClient, coop: Coop
+) -> None:
+    response = await client.post(
+        "/api/v1/coops/coop_01/command", json={"action": "OPEN", "force": True}
+    )
+    assert response.status_code == 202
+    (sent,) = app.state.command_publisher.sent
+    assert sent.force is True and sent.to_payload()["force"] is True
+
+    # Forcer n'a de sens que pour ouvrir.
+    response = await client.post(
+        "/api/v1/coops/coop_01/command", json={"action": "CLOSE", "force": True}
+    )
+    assert response.status_code == 422
+
+
 async def test_calibrage_exige_le_nombre_de_poules(client: AsyncClient, coop: Coop) -> None:
     response = await client.post("/api/v1/coops/coop_01/command", json={"action": "CALIBRATE"})
     assert response.status_code == 422

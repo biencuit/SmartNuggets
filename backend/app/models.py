@@ -118,6 +118,8 @@ class Coop(Base):
         String(16), default=DoorState.CLOSED, server_default=DoorState.CLOSED
     )
     auto_close_time: Mapped[time | None] = mapped_column(Time)
+    # Porte verrouillée pendant ce temps après un prédateur (réglable dans l'application).
+    predator_lock_s: Mapped[int] = mapped_column(Integer, default=300, server_default="300")
     battery_level: Mapped[int | None] = mapped_column(Integer)
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # Connexion MQTT du Raspberry Pi (topic status, alimenté par le Last Will).

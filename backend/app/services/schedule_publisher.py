@@ -16,7 +16,9 @@ ScheduleDays = list[tuple[int, time, time]]
 
 
 class SchedulePublisher(Protocol):
-    async def publish_schedule(self, coop_id: str, days: ScheduleDays) -> None: ...
+    async def publish_schedule(
+        self, coop_id: str, days: ScheduleDays, predator_lock_s: int
+    ) -> None: ...
 
 
 class InMemorySchedulePublisher:
@@ -24,7 +26,11 @@ class InMemorySchedulePublisher:
 
     def __init__(self) -> None:
         self.sent: dict[str, ScheduleDays] = {}
+        self.predator_lock_s: dict[str, int] = {}
 
-    async def publish_schedule(self, coop_id: str, days: ScheduleDays) -> None:
+    async def publish_schedule(
+        self, coop_id: str, days: ScheduleDays, predator_lock_s: int
+    ) -> None:
         logger.info("Planning de %s (non transmis : pas de broker)", coop_id)
         self.sent[coop_id] = days
+        self.predator_lock_s[coop_id] = predator_lock_s

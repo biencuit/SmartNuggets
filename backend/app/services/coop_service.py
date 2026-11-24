@@ -192,7 +192,10 @@ class CoopService:
     async def send_command(self, coop_id: str, request: CommandRequest) -> DoorCommand:
         await self.get_coop(coop_id)
         command = DoorCommand(
-            coop_id=coop_id, action=request.action, inside_count=request.inside_count
+            coop_id=coop_id,
+            action=request.action,
+            inside_count=request.inside_count,
+            force=request.force,
         )
         await self.publisher.publish(command)
         return command
@@ -218,12 +221,18 @@ class CoopService:
         Le planning est gardé même si la transmission échoue (broker injoignable) : elle
         peut être retentée (nouvel appel) sans perdre ce qui a déjà été réglé.
         """
-        await self.get_coop(coop_id)
+        coop = await self.get_coop(coop_id)
         days = sorted((day.weekday, day.open_from, day.close_at) for day in data.days)
+        if data.predator_lock_s is not None:
+            coop.predator_lock_s = data.predator_lock_s
+        predator_lock_s = coop.predator_lock_s
         rows = await self.schedules.replace(coop_id, days)
         await self.session.commit()
-        await self.schedule_publisher.publish_schedule(coop_id, days)
+        await self.schedule_publisher.publish_schedule(coop_id, days, predator_lock_s)
         return rows
+
+    async def get_predator_lock_s(self, coop_id: str) -> int:
+        return (await self.get_coop(coop_id)).predator_lock_s
 
 
 def is_online(coop: Coop, offline_after_s: int, now: datetime | None = None) -> bool:

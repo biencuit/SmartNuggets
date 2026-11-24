@@ -20,6 +20,7 @@ class DoorCommand:
     coop_id: str
     action: str
     inside_count: int | None = None
+    force: bool = False
     command_id: uuid.UUID = field(default_factory=uuid.uuid4)
     issued_at: datetime = field(default_factory=utcnow)
 
@@ -28,6 +29,7 @@ class DoorCommand:
             "command_id": str(self.command_id),
             "action": self.action,
             "inside_count": self.inside_count,
+            "force": self.force,
             "issued_at": self.issued_at.isoformat(),
         }
 

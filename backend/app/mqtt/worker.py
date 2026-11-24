@@ -147,7 +147,9 @@ class MqttSchedulePublisher:
     def __init__(self, worker: MqttWorker) -> None:
         self.worker = worker
 
-    async def publish_schedule(self, coop_id: str, days: ScheduleDays) -> None:
+    async def publish_schedule(
+        self, coop_id: str, days: ScheduleDays, predator_lock_s: int
+    ) -> None:
         client = self.worker.client
         if client is None:
             raise ServiceUnavailableError("Broker MQTT injoignable : planning non transmis")
@@ -159,7 +161,8 @@ class MqttSchedulePublisher:
                     "close_at": close_at.isoformat(),
                 }
                 for weekday, open_from, close_at in days
-            ]
+            ],
+            "predator_lock_s": predator_lock_s,
         }
         try:
             await client.publish(
