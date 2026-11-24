@@ -62,7 +62,8 @@ function setup(
       options.gone ? gone : { body: options.events ?? [makeEvent()] },
     [`GET ${BASE}/alerts?limit=50`]: () =>
       options.gone ? gone : { body: options.alerts ?? [makeAlert()] },
-    [`GET ${BASE}/schedule`]: () => (options.gone ? gone : { body: { days: DEFAULT_WEEK } }),
+    [`GET ${BASE}/schedule`]: () =>
+      options.gone ? gone : { body: { days: DEFAULT_WEEK, predator_lock_s: 300 } },
     [`POST ${BASE}/command`]: () =>
       options.commandStatus
         ? { status: options.commandStatus, body: { detail: "Le poulailler est injoignable" } }
@@ -178,7 +179,9 @@ describe("CoopDashboard - tableau de bord du poulailler, sur l'accueil", () => {
     expect(calls.some((call) => call.url === `${BASE}/command`)).toBe(false);
 
     await user.click(screen.getByRole("button", { name: "Ouvrir quand même" }));
-    expect(calls.some((call) => call.url === `${BASE}/command`)).toBe(true);
+    const command = calls.find((call) => call.url === `${BASE}/command`);
+    // Ouverture forcée : le Pi lève son verrouillage après le prédateur.
+    expect(JSON.parse(command?.body ?? "{}")).toEqual({ action: "OPEN", force: true });
   });
 
   it("corrige le compteur de poules (CALIBRATE)", async () => {
@@ -314,5 +317,35 @@ describe("CoopDashboard - tableau de bord du poulailler, sur l'accueil", () => {
     expect(putCall?.url).toBe(`${BASE}/schedule`);
     const sent = JSON.parse(putCall?.body ?? "{}") as { days: DaySchedule[] };
     expect(sent.days[5]).toEqual({ weekday: 5, open_from: "07:00:00", close_at: "22:30:00" });
+  });
+
+  it("règle la durée de verrouillage après un prédateur", async () => {
+    const calls = setup();
+    const planning = await screen.findByRole("region", { name: "Planning de la porte" });
+    const input = await within(planning).findByLabelText(/Verrouillage après un prédateur/);
+    const save = within(planning).getByRole("button", { name: "Enregistrer" });
+    expect(input).toHaveValue(300);
+    expect(save).toBeDisabled();
+
+    fireEvent.change(input, { target: { value: "5" } });
+    expect(save).toBeEnabled();
+    await userEvent.click(save);
+
+    expect(await within(planning).findByText(/enregistré et transmis/)).toBeInTheDocument();
+    const putCall = calls.find((call) => call.method === "PUT");
+    const sent = JSON.parse(putCall?.body ?? "{}") as { predator_lock_s: number };
+    expect(sent.predator_lock_s).toBe(5);
+  });
+
+  it("refuse une durée de verrouillage invalide sans rien envoyer", async () => {
+    const calls = setup();
+    const planning = await screen.findByRole("region", { name: "Planning de la porte" });
+    const input = await within(planning).findByLabelText(/Verrouillage après un prédateur/);
+
+    fireEvent.change(input, { target: { value: "5000" } });
+    await userEvent.click(within(planning).getByRole("button", { name: "Enregistrer" }));
+
+    expect(await within(planning).findByRole("alert")).toHaveTextContent(/entre 0 et 3600/);
+    expect(calls.some((call) => call.method === "PUT")).toBe(false);
   });
 });
