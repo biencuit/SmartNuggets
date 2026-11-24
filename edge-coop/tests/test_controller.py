@@ -177,6 +177,62 @@ def test_la_nuit_la_porte_se_ferme_et_ne_s_ouvre_plus_seule(env):
     assert controller.door.state == DoorState.OPEN
 
 
+def late_hen_alerts(uplink):
+    return [f for kind, name, f in uplink.sent if kind == "alert" and name == "HEN_AFTER_CLOSING"]
+
+
+def test_poule_vue_apres_la_fermeture_alerte_avec_photo_porte_fermee(env):
+    controller, devices, detector, uplink, clock = env
+    clock.now = NIGHT
+    detector.show(Label.HEN, 0.9)
+    mouvement(controller, devices)
+    assert controller.door.state == DoorState.CLOSED
+    assert uplink.events() == []
+    (alert,) = late_hen_alerts(uplink)
+    assert alert["severity"] == "CRITICAL" and alert["ai_confidence"] == 0.9
+    assert alert["image"].startswith(b"\xff\xd8")
+
+
+def test_poule_apres_la_fermeture_une_alerte_par_minute_au_plus(env):
+    controller, devices, detector, uplink, clock = env
+    clock.now = NIGHT
+    for _ in range(3):  # trois images à la suite : une seule alerte
+        detector.show(Label.HEN, 0.9)
+        mouvement(controller, devices)
+    clock.t += 59
+    detector.show(Label.HEN, 0.9)
+    mouvement(controller, devices)
+    assert len(late_hen_alerts(uplink)) == 1
+    clock.t += 2
+    detector.show(Label.HEN, 0.9)
+    mouvement(controller, devices)
+    assert len(late_hen_alerts(uplink)) == 2
+
+
+def test_poule_de_jour_ou_confiance_trop_basse_pas_d_alerte_de_fermeture(env):
+    controller, devices, detector, uplink, clock = env
+    detector.show(Label.HEN, 0.9)
+    mouvement(controller, devices)  # de jour : la porte s'ouvre, pas d'alerte
+    clock.now = NIGHT
+    controller.tick()
+    detector.show(Label.HEN, 0.4)
+    mouvement(controller, devices)  # sous le seuil HEN_THRESHOLD : ignoré
+    assert late_hen_alerts(uplink) == []
+
+
+def test_planning_de_l_application_declenche_l_alerte(env):
+    """Planning reçu du serveur (#70) qui ferme à 14h : une poule à 14h30 donne l'alerte."""
+    controller, devices, detector, uplink, clock = env
+    controller.on_schedule(
+        [ScheduleDay(weekday=day, open_from="07:00", close_at="14:00") for day in range(7)]
+    )
+    clock.now = datetime(2026, 11, 10, 14, 30)
+    detector.show(Label.HEN, 0.9)
+    mouvement(controller, devices)
+    assert controller.door.state == DoorState.CLOSED
+    assert len(late_hen_alerts(uplink)) == 1
+
+
 def test_on_schedule_remplace_l_horaire_d_un_jour_precis(env):
     """Planning reçu du serveur (#70) : un samedi peut fermer plus tard qu'un mardi."""
     controller, devices, detector, uplink, clock = env

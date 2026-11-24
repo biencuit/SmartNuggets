@@ -122,6 +122,29 @@ async def test_alerte_avec_photo(
     assert response.content == JPEG
 
 
+async def test_alerte_poule_apres_la_fermeture_avec_photo(
+    app: FastAPI, client: AsyncClient, session: AsyncSession, coop: Coop
+) -> None:
+    """Le Pi voit une poule devant la porte après l'heure de fermeture : alerte avec photo."""
+    payload = {
+        "sent_at": SENT_AT,
+        "alert_type": "HEN_AFTER_CLOSING",
+        "severity": "CRITICAL",
+        "ai_confidence": 0.9,
+        "image_base64": base64.b64encode(JPEG).decode(),
+        "image_format": "jpeg",
+    }
+    await make_worker(app).handle_message(
+        "smartnuggets/coop_01/alerts", json.dumps(payload).encode()
+    )
+
+    alert = (await session.execute(select(Alert))).scalar_one()
+    assert alert.alert_type == "HEN_AFTER_CLOSING"
+    assert alert.image_url is not None
+    response = await client.get(alert.image_url)
+    assert response.status_code == 200 and response.content == JPEG
+
+
 async def test_alerte_avec_photo_invalide_est_gardee_sans_photo(
     app: FastAPI, client: AsyncClient, session: AsyncSession, coop: Coop
 ) -> None:

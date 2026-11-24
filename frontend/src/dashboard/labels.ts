@@ -28,6 +28,7 @@ export const TRIGGER_LABELS: Record<TriggerSource, string> = {
 export const ALERT_TITLES: Record<AlertType, string> = {
   PREDATOR_DETECTED: "Prédateur détecté",
   MISSING_HEN: "Poule pas rentrée",
+  HEN_AFTER_CLOSING: "Poule dehors après la fermeture",
   DOOR_BLOCKED: "Porte bloquée",
   LOW_BATTERY: "Batterie faible",
   DEVICE_OFFLINE: "Poulailler hors ligne",
@@ -36,6 +37,8 @@ export const ALERT_TITLES: Record<AlertType, string> = {
 export const ALERT_ADVICE: Record<AlertType, string> = {
   PREDATOR_DETECTED: "La porte reste fermée tant que le prédateur est là. Regardez la photo.",
   MISSING_HEN: "Le compteur indique qu'une poule n'est pas rentrée à l'heure de fermeture.",
+  HEN_AFTER_CLOSING:
+    "Une poule est devant la porte après l'heure de fermeture : la porte reste fermée. Regardez la photo et ouvrez à la main si besoin.",
   DOOR_BLOCKED: "La porte n'a pas pu finir son mouvement. Vérifiez qu'aucun obstacle ne la gêne.",
   LOW_BATTERY: "Rechargez ou remplacez la batterie du poulailler.",
   DEVICE_OFFLINE: "Le Raspberry Pi ne donne plus de nouvelles. Vérifiez le câble et le courant.",
