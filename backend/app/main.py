@@ -29,6 +29,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     if settings.jwt_secret_key is None:
         logger.warning("JWT_SECRET_KEY absente : clé temporaire générée (dev uniquement)")
         settings = settings.model_copy(update={"jwt_secret_key": secrets.token_hex(32)})
+    if not settings.telegram_bot_token:
+        logger.warning("TELEGRAM_BOT_TOKEN absent : aucune notification Telegram ne sera envoyée")
     engine = create_engine(settings.database_url)
     sessionmaker = create_sessionmaker(engine)
     broadcaster = Broadcaster()

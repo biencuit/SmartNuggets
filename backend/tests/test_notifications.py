@@ -5,6 +5,8 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import Settings
+from app.main import create_app
 from app.models import Alert, AlertType, Coop, Severity, User
 from app.services.notifications import NotificationService
 from app.timeutils import utcnow
@@ -156,3 +158,15 @@ async def test_echec_d_envoi_ne_leve_pas_d_exception(
     await service.notify_alert(owner.id, make_alert(coop.id))  # ne doit pas lever
 
     assert len(transport.requests) == 1
+
+
+def test_demarrage_sans_jeton_telegram_previent(settings: Settings, caplog) -> None:
+    create_app(settings.model_copy(update={"telegram_bot_token": None}))
+
+    assert "TELEGRAM_BOT_TOKEN absent" in caplog.text
+
+
+def test_demarrage_avec_jeton_telegram_ne_previent_pas(settings: Settings, caplog) -> None:
+    create_app(settings.model_copy(update={"telegram_bot_token": "123:abc"}))
+
+    assert "TELEGRAM_BOT_TOKEN absent" not in caplog.text

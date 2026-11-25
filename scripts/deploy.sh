@@ -16,6 +16,11 @@ for f in backend/.env mosquitto/config/passwd mosquitto/certs/fullchain.pem mosq
   [[ -e "$f" ]] || { echo "Fichier manquant : $f (voir le wiki, page 16)" >&2; exit 1; }
 done
 
+# Pas bloquant : l'appli marche sans, mais aucune notification Telegram ne part (#68).
+if ! grep -qE '^TELEGRAM_BOT_TOKEN=.+' backend/.env; then
+  echo "ATTENTION : TELEGRAM_BOT_TOKEN absent de backend/.env, les notifications Telegram sont désactivées" >&2
+fi
+
 echo "==> git pull ($(git rev-parse --abbrev-ref HEAD))"
 git pull --ff-only
 
