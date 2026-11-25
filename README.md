@@ -82,7 +82,9 @@ en TLS, pour les Raspberry Pi) sont ouverts. Le certificat Let's Encrypt se reno
 (certbot).
 
 Après chaque CI verte sur `main`, `.github/workflows/deploy.yml` se connecte au VPS et lance
-`scripts/deploy.sh`. Installation complète du serveur : voir le wiki, pages 11 (Hébergement -
+`scripts/deploy.sh`. Si la nouvelle version ne répond pas, le script remet seul la version
+d'avant (base de données, code et images) : le déploiement est en échec dans GitHub Actions, mais
+le site reste en ligne. Installation complète du serveur : voir le wiki, pages 11 (Hébergement -
 Déploiement) et 16 (Manuel d'installation).
 
 Pour ajouter un nouveau Raspberry Pi, lancer `bash scripts/new-coop.sh coop_02` sur le VPS. Le
